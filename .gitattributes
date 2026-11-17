@@ -1,0 +1,6 @@
+# Eval sets are hashed (eval_set_sha): keep their bytes identical on every OS.
+src/data/eval/*.jsonl text eol=lf
+src/data/eval/*.json  text eol=lf
+src/data/*.jsonl      text eol=lf
+src/data/*.json       text eol=lf
+src/config/*.yaml     text eol=lf

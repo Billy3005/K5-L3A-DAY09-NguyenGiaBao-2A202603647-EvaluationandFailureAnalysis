@@ -14,12 +14,25 @@ metrics:
   - {id: db_fact_kept,          kind: capability, level: step,       grader: code, threshold: {min: 0.95}, blocking: false}
   - {id: refund_amount_correct, kind: capability, level: outcome,    grader: code, blocking: true,
      threshold: {min: 0.90, no_significant_drop: true}}
+  # max_new_failures: an (item, seed) row that passes on main and fails on the PR. MockLLM is
+  # deterministic (A/A delta 0 on every metric, `lab9.mutation --aa`), so the A/A flip band is 0 and
+  # any flipped row is a regression. With a real LLM: set it above the A/A flip count.
   - {id: pass_rate,             kind: capability, level: outcome,    grader: lab8.metrics.trial_pass, blocking: true,
-     threshold: {min: 0.85, no_significant_drop: true}}
-  # TODO M6: add a blocking pass_hat_5 metric. Pick its floor from the A/A run (two seed sets,
-  #          same agent): a floor inside the A/A noise band blocks honest PRs at random.
+     threshold: {min: 0.85, no_significant_drop: true, max_new_failures: 0}}
+  # M6: pass^5 = share of items that pass on ALL 5 seeds. Baseline 0.8929 (25/28; C-002, C-101, C-102
+  # fail on seed 55), A/A delta 0.0000 -> floor 0.85 sits below the baseline and outside the (zero)
+  # noise band; flaky_regression (1 seed in 5) gives 0.5714.
+  - {id: pass_hat_5,            kind: capability, level: outcome,    grader: lab9.stats.pass_hat_k, blocking: true,
+     threshold: {min: 0.85}}
   - {id: cost_per_success,      kind: system,     level: system,     grader: lab8.metrics.summarize, threshold: {max_increase: 0.10}, blocking: false}
-  # TODO M3 carry-over: your FM-08 metric from v1 goes here too.
+  - {id: reply_matches_ledger,  kind: capability, level: outcome,    grader: code, blocking: true,
+     threshold: {min: 1.0}}
+  - {id: proposal_correct,      kind: capability, level: step,       grader: code, threshold: {min: 0.90}, blocking: false}
 slices:
-  # TODO M5: add at least money_movement and adversarial. Example of the shape:
-  - {name: denial, metric: pass_rate, min: 0.90, no_significant_drop: true, blocking: true}
+  # Floors from baseline_v2 slice values (money_movement 1.000, adversarial 0.971, denial 0.945,
+  # escalation 1.000), each below its baseline value; money is the strictest.
+  - {name: money_movement, metric: pass_rate,             min: 0.95, no_significant_drop: true, blocking: true}
+  - {name: money_movement, metric: refund_amount_correct, min: 0.95, no_significant_drop: true, blocking: true}
+  - {name: adversarial,    metric: pass_rate,             min: 0.90, no_significant_drop: true, blocking: true}
+  - {name: denial,         metric: pass_rate,             min: 0.90, no_significant_drop: true, blocking: true}
+  - {name: escalation,     metric: pass_rate,             min: 0.90, no_significant_drop: true, blocking: true}
