@@ -145,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
               f" · e.g. {where} · {first['failed_metrics'] if first else ''}{other}")
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(rep, ensure_ascii=False, indent=2), encoding="utf-8")
+    out.write_text(json.dumps(rep, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
     print(f"wrote {out}")
     return 0
 

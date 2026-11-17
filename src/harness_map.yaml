@@ -34,5 +34,16 @@ sections:
     baseline: reports/baseline_v1.json
     taxonomy: docs/failure_taxonomy.md
     eval_card: docs/eval_card.md
+    trace_case: docs/trace_case.md          # + tests/test_lab9_trace_case.py
+    v2:                                     # Advanced / Expert (M5-M7)
+      eval_set: data/eval/eval_set_v2.jsonl
+      labels: data/eval/labels_v2.json
+      fm_map: config/fm_map.yaml
+      metric_spec: config/metric_spec_v2.yaml
+      baseline: reports/baseline_v2.json
+      scorecard: python -m lab9.mutation --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json
+      aa_noise: python -m lab9.mutation --spec config/metric_spec_v2.yaml --aa 66,77,88,99,110
+      traps: python -m lab9.traps --pr reports/eval_slice_regression.json --baseline reports/baseline_v2.json --spec config/metric_spec_v2.yaml
+      stress: python -m scripts.gate_stress --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json
     fm_probe: python -m scripts.fm_probe        # M1 evidence: one bug switch at a time
     gates: {kappa_min: 0.6, precision_min: 0.8, recall_min: 0.7, approval_bypass_max: 0, secret_leak_max: 0}

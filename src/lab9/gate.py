@@ -50,6 +50,11 @@ def integrity_check(pr: dict, base: dict, spec: dict, base_spec: dict | None = N
             elif not math.isfinite(v):
                 problems.append(f"{name} metric {k} is {v} (NaN/inf)")
 
+    # 1b. the spec itself: a NaN / string threshold compares False and silently disables a check
+    problems += threshold_problems(spec)
+    if base_spec is not None:
+        problems += [f"base spec: {p}" for p in threshold_problems(base_spec)]
+
     # 2. rows vs manifest: dropped or duplicated rows
     rows, brows = pr.get("rows") or [], base.get("rows") or []
     man, bman = pr.get("manifest") or {}, base.get("manifest") or {}
@@ -105,6 +110,34 @@ def integrity_check(pr: dict, base: dict, spec: dict, base_spec: dict | None = N
     return problems
 
 
+def _finite(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def threshold_problems(spec: dict) -> list[str]:
+    """Every threshold must be a finite number (max_new_failures a non-negative int), every flag a bool."""
+    out = []
+    entries = [(f"metric {m.get('id')}", m.get("threshold") or {}, m) for m in spec.get("metrics") or []]
+    entries += [(f"slice {sl.get('name')}/{sl.get('metric')}", sl, sl) for sl in spec.get("slices") or []]
+    for where, th, entry in entries:
+        for key in ("min", "max", "max_increase", "max_new_failures"):
+            if key in th and not _finite(th[key]):
+                out.append(f"{where} threshold {key}={th[key]!r} is not a finite number")
+        if "max_new_failures" in th and _finite(th["max_new_failures"]) and                 (th["max_new_failures"] < 0 or th["max_new_failures"] != int(th["max_new_failures"])):
+            out.append(f"{where} max_new_failures={th['max_new_failures']!r} must be a non-negative integer")
+        for key in ("no_significant_drop",):
+            if key in th and not isinstance(th[key], bool):
+                out.append(f"{where} {key}={th[key]!r} must be true/false")
+        if "blocking" in entry and not isinstance(entry["blocking"], bool):
+            out.append(f"{where} blocking={entry['blocking']!r} must be true/false")
+    bs = spec.get("bootstrap") or {}
+    if "confidence" in bs and not (_finite(bs["confidence"]) and 0 < bs["confidence"] < 1):
+        out.append(f"bootstrap confidence={bs['confidence']!r} must be in (0, 1)")
+    if "n_resamples" in bs and not (_finite(bs["n_resamples"]) and bs["n_resamples"] >= 1):
+        out.append(f"bootstrap n_resamples={bs['n_resamples']!r} must be a positive number")
+    return out
+
+
 def _slice_tags(rows: list[dict]) -> dict[str, frozenset]:
     out: dict[str, frozenset] = {}
     for r in rows:
@@ -121,34 +154,40 @@ def _slice_conflicts(rows: list[dict]) -> list[str]:
 
 def _recompute_mismatch(pr: dict, rows: list[dict], graded: list[str], spec: dict) -> list[str]:
     ids = [m for m in graded if all(m in r for r in rows)]
-    has_cost = all(isinstance(r.get("cost"), (int, float)) for r in rows)
+    out = []
+    bad_cost = [f"{r.get('item_id')}@{r.get('seed')}" for r in rows
+                if "cost" in r and not (_finite(r["cost"]) and r["cost"] >= 0)]
+    if bad_cost:
+        out.append(f"{len(bad_cost)} row(s) with a non-finite or negative cost, e.g. {bad_cost[0]}")
+    has_cost = all(_finite(r.get("cost")) for r in rows)
+    if not has_cost and (pr.get("metrics") or {}).get("cost_per_success") is not None:
+        out.append("cost_per_success is reported but rows lack a finite cost to back it")
     try:
         again = aggregate([r if has_cost else {**r, "cost": 0.0} for r in rows], ids,
                           k_values=spec.get("pass_k", []))
     except (KeyError, TypeError, ValueError, ZeroDivisionError) as e:
-        return [f"metrics cannot be recomputed from rows: {e!r}"]
-    out = []
+        return out + [f"metrics cannot be recomputed from rows: {e!r}"]
     for k, v in (pr.get("metrics") or {}).items():
         if k not in again or (k == "cost_per_success" and not has_cost):
             continue
         w = again[k]
         if v is None and w is None:
             continue
-        if v is None or w is None or not isinstance(v, (int, float)) or abs(float(v) - float(w)) > 1e-6:
+        if not (_finite(v) and _finite(w)) or abs(float(v) - float(w)) > 1e-6:
             out.append(f"metric {k} = {v!r} but its rows give {w!r} (edited or stale metrics)")
     return out
 
 
 def _looser(th: dict, bth: dict) -> list[str]:
+    """A bound is looser when it is gone, not a finite number (NaN compares False), or moved the lax way."""
     out = []
-    if "max" in bth and ("max" not in th or th["max"] > bth["max"]):
-        out.append(f"max {bth['max']} -> {th.get('max')}")
-    if "min" in bth and ("min" not in th or th["min"] < bth["min"]):
-        out.append(f"min {bth['min']} -> {th.get('min')}")
-    if "max_increase" in bth and ("max_increase" not in th or th["max_increase"] > bth["max_increase"]):
-        out.append(f"max_increase {bth['max_increase']} -> {th.get('max_increase')}")
-    if "max_new_failures" in bth and ("max_new_failures" not in th or th["max_new_failures"] > bth["max_new_failures"]):
-        out.append(f"max_new_failures {bth['max_new_failures']} -> {th.get('max_new_failures')}")
+    for key, lax in (("max", lambda new, old: new > old), ("min", lambda new, old: new < old),
+                     ("max_increase", lambda new, old: new > old), ("max_new_failures", lambda new, old: new > old)):
+        if key not in bth or not _finite(bth[key]):
+            continue
+        new = th.get(key)
+        if not _finite(new) or lax(new, bth[key]):
+            out.append(f"{key} {bth[key]} -> {new!r}")
     if bth.get("no_significant_drop") and not th.get("no_significant_drop"):
         out.append("no_significant_drop dropped")
     return out

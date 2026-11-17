@@ -109,25 +109,35 @@ _REFUND_VERB = re.compile(
     r"|bồi\s+thường|boi\s+thuong|trả\s+lại|chuyển\s+(?:khoản|tiền|lại)|nhận\s+(?:được|lại)|"
     r"\brefund|\breimburs|\bcredited\b|\bpaid\s+back\b|\bcompensat",
     re.IGNORECASE)
-# The amount belongs to an earlier refund or is context (fee, price), not this refund.
-_HISTORICAL = re.compile(
-    r"trước\s+(?:đây|đó|kia)|lần\s+trước|đã\s+từng|ban\s+đầu|\bgốc\b|giá\s+trị\s+đơn|"
-    r"\bpreviously\b|\bearlier\b|\bbefore\b|\boriginal(?:ly)?\b|\bprior\b|\binitial(?:ly)?\b",
+# "Số tiền: 35.000đ" next to "Bạn được hoàn tiền." -- a labelled amount is the refund amount.
+_AMOUNT_LABEL = re.compile(r"\bsố\s+tiền\b|\bkhoản\s+tiền\b|\btổng\s+(?:tiền\s+)?hoàn\b|\b(?:refund\s+)?amount\b|"
+                           r"\btotal\s+refund\b", re.IGNORECASE)
+# The clause is about an EARLIER refund event.
+_EARLIER = re.compile(r"trước\s+(?:đây|đó|kia)|lần\s+trước|đã\s+từng|\bpreviously\b|\bearlier\b|\blast\s+time\b|"
+                      r"\bbefore\b", re.IGNORECASE)
+# The clause says the refund is refused / not done (anywhere in the clause).
+_REFUSED = re.compile(
+    r"từ\s+chối|(?:chưa|không)\s+đủ\s+điều\s+kiện|không\s+thuộc\s+diện|"
+    r"chưa\s+(?:được\s+)?(?:duyệt|xử\s+lý|chuyển|thực\s+hiện)|"
+    r"\bdenied\b|\bdeclined\b|\brejected\b|\bineligible\b|\bnot\s+eligible\b|"
+    r"\bnot\s+(?:been\s+|yet\s+)?(?:issued|processed|made|approved|completed|refunded)\b",
     re.IGNORECASE)
-# The clause denies the refund: no money is asserted to move.
-_NEGATED = re.compile(
-    r"\bchưa\b|\bkhông\b|\bko\b|từ\s+chối|"
-    r"\bnot\b|\bno\b|\bnever\b|\bdenied\b|\bdeclined\b|\brejected\b|n't\b",
-    re.IGNORECASE)
+# A negator right before the refund verb: "không hoàn", "chưa được hoàn", "has not been refunded", "no refund".
+_NEGATOR = re.compile(r"^(?:chưa|không|ko|chẳng|not|never|no|n't|cannot|can't|won't)$", re.IGNORECASE)
 # The clause only describes what the customer asked for ...
 _REQUEST = re.compile(r"\byêu\s+cầu\b|\bđề\s+nghị\b|\bmong\s+muốn\b|\brequest(?:ed|s)?\b|\bask(?:ed|s)?\b",
                       re.IGNORECASE)
 # ... unless it also says the money was (being) handled.
-_DONE = re.compile(r"\bđã\b|\brồi\b|thành\s+công|\bxong\b|\bđang\b|\bsẽ\b|"
+_DONE = re.compile(r"\bđã\b|\brồi\b|thành\s+công|\bxong\b|\bđang\b|\bsẽ\b|\bđược\s+(?:xử\s+lý|duyệt|chuyển)\b|"
                    r"\bprocessed\b|\bcompleted\b|\bapproved\b|\bissued\b|\bhave\b|\bhas\b|\bwas\b|\bwill\b",
                    re.IGNORECASE)
-# Split into clauses at . ; ! ? , or newline, but never inside a number ("35.000", "35,000").
-_CLAUSE = re.compile(r"[.;!?,\n](?!\d)|\s(?:và|nhưng|còn|and|but)\s", re.IGNORECASE)
+# Words right before an amount that make it context, not the refund: the fee it came out of, the
+# original price, what was asked "instead".
+_CONTEXT = re.compile(r"\btừ\b|\btrên\b|thay\s+vì|phụ\s+phí|\bgốc\b|ban\s+đầu|giá\s+trị|"
+                      r"\bfrom\b|\binstead\s+of\b|\bout\s+of\b|\boriginal(?:ly)?\b|\brather\s+than\b",
+                      re.IGNORECASE)
+# Split into clauses at . ; ! ? , or newline (never inside "35.000" / "35,000") and at conjunctions.
+_CLAUSE = re.compile(r"[.;!?,\n](?!\d)|\s(?:và|nhưng|còn|nên|vì|do|and|but|so|because)\s", re.IGNORECASE)
 
 
 def _to_vnd(num: str, unit: str) -> int:
@@ -143,23 +153,41 @@ def reply_amounts(text: str) -> tuple[list[int], list[int]]:
     return every, refund_claims(text)[0]
 
 
+def _words_before(text: str, pos: int, n: int) -> list[str]:
+    return re.findall(r"[\w']+", text[:pos])[-n:]
+
+
+def _negated_verb(clause: str) -> bool:
+    """Every refund verb in the clause has a negator among the 3 words before it."""
+    verbs = list(_REFUND_VERB.finditer(clause))
+    return bool(verbs) and all(any(_NEGATOR.match(w) for w in _words_before(clause, v.start(), 3)) for v in verbs)
+
+
 def refund_claims(text: str) -> tuple[list[int], bool]:
     """Read the reply clause by clause. Returns (amounts asserted for the current refund, whether the
-    reply asserts that a refund happened or is happening). A clause counts only if it is about a
-    refund, is not about an earlier refund / the fee / the order value, is not negated, and is more
-    than a description of what the customer requested."""
+    reply asserts that a refund happened or is happening).
+
+    A clause counts when it is about a refund (refund verb, or a labelled amount "Số tiền: X"), is not
+    about an earlier refund, is not refused / negated, and is more than a description of the request.
+    Inside a counted clause an amount is ignored when the words right before it mark it as context
+    ("từ phí 35.000đ", "thay vì 35.000đ", "trên phí gốc 20.000đ")."""
     amounts: list[int] = []
     asserted = False
     for clause in _CLAUSE.split(text):
-        if not clause or not _REFUND_VERB.search(clause):
+        if not clause or not clause.strip():
             continue
-        if _HISTORICAL.search(clause) or _NEGATED.search(clause):
+        verb, label = _REFUND_VERB.search(clause), _AMOUNT_LABEL.search(clause)
+        if not verb and not label:
+            continue
+        if _EARLIER.search(clause) or _REFUSED.search(clause) or (verb and _negated_verb(clause)):
             continue
         if _REQUEST.search(clause) and not _DONE.search(clause):
             continue
-        found = [_to_vnd(m["num"], m["unit"]) for m in _AMOUNT.finditer(clause)]
-        amounts += found
-        asserted = True
+        for m in _AMOUNT.finditer(clause):
+            if _CONTEXT.search(" ".join(_words_before(clause, m.start(), 4))):
+                continue
+            amounts.append(_to_vnd(m["num"], m["unit"]))
+        asserted = asserted or bool(verb) or bool(amounts)
     return amounts, asserted
 
 

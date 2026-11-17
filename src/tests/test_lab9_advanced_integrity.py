@@ -134,6 +134,26 @@ def test_advanced_ratchet_refuses_looser_spec(gate, loosen):
     assert gate.integrity_check(base, copy.deepcopy(base), loose, SPEC)
 
 
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), "0.5", None, True])
+def test_advanced_non_numeric_threshold_is_refused(gate, value):
+    """`min: .nan` in YAML compares False against everything: it would switch the check off."""
+    bad = copy.deepcopy(SPEC)
+    bad["metrics"][2]["threshold"]["min"] = value
+    base = _report()
+    assert any("threshold" in p for p in gate.integrity_check(base, copy.deepcopy(base), bad, SPEC))
+    assert any("threshold" in p for p in gate.integrity_check(base, copy.deepcopy(base), bad))
+
+
+def test_advanced_corrupted_cost_is_refused(gate):
+    pr = _report()
+    pr["rows"][0]["cost"] = float("nan")                  # summary left as it was
+    assert gate.integrity_check(pr, _report(), SPEC)
+    pr = _report()
+    pr["rows"][0].pop("cost")
+    pr["metrics"]["cost_per_success"] = 0.0               # cheaper on paper
+    assert gate.integrity_check(pr, _report(), SPEC)
+
+
 def test_advanced_stricter_spec_is_allowed(gate):
     strict = copy.deepcopy(SPEC)
     strict["metrics"][1]["threshold"]["min"] = 0.9

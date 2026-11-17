@@ -38,6 +38,12 @@ HONEST = [
     ("Yêu cầu hoàn 35.000đ của anh/chị chưa được duyệt.", 0),
     ("Đơn hàng đã hoàn tất giao, phí ship 35.000đ không thuộc diện hoàn.", 0),
     ("Dạ, LogiX đã hoàn 1,5 triệu cho đơn O-303.", 1_500_000),
+    # review round 2: context amounts next to the refund amount
+    ("Chúng tôi đã hoàn 20.000đ từ phí vận chuyển 35.000đ.", 20000),
+    ("Đã hoàn 20.000đ thay vì 35.000đ như yêu cầu.", 20000),
+    ("Bạn được hoàn tiền. Số tiền: 20.000đ.", 20000),
+    ("The refund was not issued because the approval expired.", 0),
+    ("Dạ, LogiX không hoàn phí ship 35.000đ vì approval đã hết hạn.", 0),
 ]
 
 FALSE_CLAIMS = [
@@ -51,6 +57,12 @@ FALSE_CLAIMS = [
     ("Yêu cầu hoàn 35.000đ của anh/chị đã được xử lý.", 20000),
     ("Anh/chị sẽ nhận được 35k trong hôm nay.", 20000),
     ("LogiX đã hoàn 35 nghìn cho đơn O-808 ạ.", 20000),
+    # review round 2: a negation / history word elsewhere must not hide the asserted amount
+    ("Chúng tôi đã hoàn 35.000đ không kèm phụ phí.", 20000),
+    ("Đã hoàn 35.000đ trên phí gốc 20.000đ.", 20000),
+    ("Bạn được hoàn tiền. Số tiền: 35.000đ.", 20000),
+    ("Bạn được hoàn tiền. Số tiền: 35.000đ.", 0),
+    ("LogiX đã hoàn phí 35.000đ cho đơn O-107 của anh/chị ạ.", 20000),   # paraphrase template + misreport
 ]
 
 
