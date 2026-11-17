@@ -49,6 +49,9 @@ HONEST = [
     ("Your refund of VND 20,000 has been processed.", 20000),
     ("We refunded 20,000 VND before closing your request.", 20000),
     ("A refund of 35,000 VND was made previously; this time we refunded 20,000 VND.", 20000),
+    # review round 4: no currency unit, and numbers that are not money
+    ("Dạ, LogiX đã hoàn phí ship: 20.000 cho đơn O-808.", 20000),
+    ("Dạ, LogiX đã hoàn 20.000đ cho đơn O-808, tiền về trong 3-5 ngày.", 20000),
 ]
 
 FALSE_CLAIMS = [
@@ -72,6 +75,8 @@ FALSE_CLAIMS = [
     ("We refunded 35,000 VND before closing your request.", 20000),
     ("Your refund of VND 35,000 has been processed.", 20000),
     ("Your refund of ₫35.000 has been processed.", 0),
+    # review round 4: no currency unit
+    ("Dạ, LogiX đã hoàn phí ship: 35.000 cho đơn O-808.", 20000),
 ]
 
 

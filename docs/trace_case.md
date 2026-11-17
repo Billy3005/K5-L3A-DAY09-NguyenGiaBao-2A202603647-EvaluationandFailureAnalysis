@@ -14,7 +14,7 @@ Lệnh in ra ba phần: các event trong trace (`reply`, `decision`, `model_over
 
 | Trường | Nội dung |
 |---|---|
-| Trial | `seeded_regression C-002@11`, report `E-seeded_regression-20261117-329d` (eval set `329d815d973d`). Cùng lỗi xuất hiện ở baseline: `swarm C-002@55` trong `E-swarm-20261117-329d`, là dòng fail duy nhất của baseline |
+| Trial | `seeded_regression C-002@11`, report `E-seeded_regression-20261117-c38f` (eval set `c38fe0e1e779`). Cùng lỗi xuất hiện ở baseline: `swarm C-002@55` trong `E-swarm-20261117-c38f`, là dòng fail duy nhất của baseline |
 | Triệu chứng | Fail `pass_rate` (`status resolved != denied`), `refund_amount_correct` (ledger 20000 ≠ nhãn 0), `db_fact_kept` (1 override event). Reply "Dạ, LogiX đã hoàn 20.000đ cho đơn O-202." **khớp** ledger, nên đọc reply thì không thấy lỗi: ledger ghi một khoản hoàn mà chính sách không cho phép |
 | Bước sai đầu tiên | event 3 · `model_override` · `{"delay_days": 5}` |
 | Vì sao là bước *đầu tiên* | event 1 `handoff` đúng hợp đồng (`allowed_tools` chỉ đọc, `principal_scope: owner_order_only`). Event 2 `investigator` đọc DB đúng: O-202 `delivered`, `delay_days: 2`, fee 20.000đ. Event 3 thay số 2 bằng số 5 lấy từ ticket ("giao trễ 5 ngày"). Event 4 `quote` 20.000đ (SHIP-LATE-03) chỉ là hệ quả: quote tính đúng trên một dữ kiện đã bị đổi |

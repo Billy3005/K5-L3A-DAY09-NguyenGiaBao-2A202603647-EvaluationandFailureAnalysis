@@ -3,7 +3,7 @@
 Nguồn bằng chứng (đều sinh bằng script, chạy trong `src/` với `PYTHONUTF8=1`):
 
 - **Probe một lỗi mỗi lần:** `python -m scripts.fm_probe --out reports/fm_probe.json`. Mỗi lần bật đúng **một** công tắc lỗi của `lab9/variant_agent.py` trên nền agent `fixed`, chạy 14 item × 5 seed (11/22/33/44/55), chấm bằng grader Lab 8 và grader Lab 9, rồi so trace với `fixed` cùng claim@seed. Bước sai đầu tiên là event đầu tiên khác nhau, sau khi bỏ qua các bước chỉ đọc (`refund_history`, vì `honest_refactor` cũng đọc mà không sai). Một hit chỉ được tính cho FM khi bước đó đúng là loại bước mà FM làm hỏng (`fm_probe.FM_STEP`). Nếu khác, hit được ghi là `manifests_as` một mode khác.
-- **Report gate:** `reports/baseline_v1.json` (`E-swarm-20261117-329d`), `reports/eval_seeded_regression.json` (`E-seeded_regression-20261117-329d`). Eval set `329d815d973d`.
+- **Report gate:** `reports/baseline_v1.json` (`E-swarm-20261117-c38f`), `reports/eval_seeded_regression.json` (`E-seeded_regression-20261117-c38f`). Eval set `c38fe0e1e779`.
 - **Xem từng trace:** `python -m lab9.trace_case --shape <shape> --claim <C-xxx> --seed <s>`.
 
 Số thứ tự step là thứ tự event trong trace của shape được nêu. Shape khác có thể chèn thêm event, ví dụ `refund_history`, nên số step có thể lệch.
@@ -61,7 +61,7 @@ Quy tắc (cài trong `lab9/evalset.py`, `FAILURE_MODES`): item được gắn F
 | E-013 | C-013 (T13) | FM-01, FM-02, FM-04, FM-05 | đã hoàn trước 35.000đ, host từ chối |
 | E-014 | C-014 (T14) | FM-01, FM-04, FM-05, FM-08 | đã hoàn trước 30.000đ, quote gồm 2 clause |
 
-`python -m lab9.evalset --check` → `eval set 329d815d973d: 0 problem(s)`.
+`python -m lab9.evalset --check` → `eval set c38fe0e1e779: 0 problem(s)`.
 
 ## 5 anchor: bước sai đầu tiên
 
@@ -75,7 +75,7 @@ Quy tắc (cài trong `lab9/evalset.py`, `FAILURE_MODES`): item được gắn F
 
 ## Bằng chứng v2 (pack đối kháng, `config/fm_map.yaml`)
 
-Cả 8 cơ chế trong `adversarial_v2.json` đều map vào FM có sẵn: `ticket_over_db` → FM-03, `stale_policy` → FM-06, `clause_sum` → FM-04, `double_deduct` → FM-05, `sibling_refund` → FM-07, `denied_ignored` → FM-02, `reply_ledger_mismatch` → FM-08, `cross_principal` → FM-09. Không cần FM mới. Trace từ run v2 (`swarm`, eval set `0fad93c3cd3a`):
+Cả 8 cơ chế trong `adversarial_v2.json` đều map vào FM có sẵn: `ticket_over_db` → FM-03, `stale_policy` → FM-06, `clause_sum` → FM-04, `double_deduct` → FM-05, `sibling_refund` → FM-07, `denied_ignored` → FM-02, `reply_ledger_mismatch` → FM-08, `cross_principal` → FM-09. Không cần FM mới. Trace từ run v2 (`swarm`, eval set `591f2c48c820`):
 
 | Item | Trace | Đọc ra |
 |---|---|---|

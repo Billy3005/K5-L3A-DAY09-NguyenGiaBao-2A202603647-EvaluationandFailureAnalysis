@@ -147,7 +147,10 @@ def _to_vnd(num: str, unit: str) -> int:
     unit = unit.lower()
     if unit in _SCALE:
         return round(float(num.replace(",", ".")) * _SCALE[unit])
-    return int(re.sub(r"[.,  ]", "", num))
+    return int(re.sub(r"[.,\u00a0 ]", "", num))
+
+
+_BARE_AMOUNT = re.compile(r"(?<![\w.,-])(?P<num>\d{1,3}(?:[.,]\d{3})+)(?![\w.,]\d)")
 
 
 def _money(text: str) -> list[tuple[int, int]]:
@@ -157,6 +160,12 @@ def _money(text: str) -> list[tuple[int, int]]:
     for m in _AMOUNT_PREFIX.finditer(text):
         if not any(a < m.end() and m.start() < b for a, b in taken):
             found.append((m.start(), _to_vnd(m["num"], m["unit"])))
+            taken.append((m.start(), m.end()))
+    # No unit at all ("hoàn phí ship: 35.000"): only a number with thousands separators counts, so
+    # order ids (O-808), day counts (3-5 ngày) and years are not mistaken for money.
+    for m in _BARE_AMOUNT.finditer(text):
+        if not any(a < m.end() and m.start() < b for a, b in taken):
+            found.append((m.start(), int(re.sub(r"[.,]", "", m["num"]))))
     return sorted(found)
 
 

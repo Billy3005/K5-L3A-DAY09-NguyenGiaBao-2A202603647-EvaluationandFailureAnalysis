@@ -167,6 +167,16 @@ def test_advanced_edited_baseline_rows_are_refused(gate):
     assert ci_check.check(_report(), base, {**SPEC, "metrics": SPEC["metrics"]})
 
 
+def test_advanced_deleted_baseline_verdicts_are_refused(gate):
+    pr = _report(fail={(0, 3)})
+    base = _report()
+    for r in base["rows"]:
+        if (r["item_id"], r["seed"]) == ("E-000", 3):
+            r.pop("pass_rate")
+    base["metrics"].pop("pass_rate")
+    assert any(p.startswith("baseline") for p in gate.integrity_check(pr, base, SPEC))
+
+
 def test_advanced_stricter_spec_is_allowed(gate):
     strict = copy.deepcopy(SPEC)
     strict["metrics"][1]["threshold"]["min"] = 0.9

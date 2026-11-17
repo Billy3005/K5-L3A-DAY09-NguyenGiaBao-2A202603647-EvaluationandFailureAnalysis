@@ -102,8 +102,11 @@ def integrity_check(pr: dict, base: dict, spec: dict, base_spec: dict | None = N
             problems.append("baseline has duplicated (item, seed) rows")
         if base.get("evaluator_failures"):
             problems.append(f"baseline has {len(base['evaluator_failures'])} evaluator failure(s)")
-        bholes = Counter(m for r in brows for m in graded if m in r and not isinstance(r.get(m), bool))
+        # a deleted verdict is as bad as an edited one: every graded spec metric must be in every row
+        bholes = Counter(m for r in brows for m in graded if not isinstance(r.get(m), bool))
         problems += [f"baseline: {n} row(s) with no verdict for {m}" for m, n in sorted(bholes.items())]
+        bmetrics = base.get("metrics") or {}
+        problems += [f"baseline: metric {m} missing from its summary" for m in graded if m not in bmetrics]
         if not bholes:
             problems += [f"baseline: {x}" for x in _recompute_mismatch(base, brows, graded, spec)]
 

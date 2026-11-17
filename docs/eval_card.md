@@ -4,8 +4,8 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
 
 ## v1 (Core)
 
-- **Run ID / eval set SHA:** baseline `E-swarm-20261117-329d` · eval set v1 `329d815d973d`
-- **Phiên bản:** nhánh `starter/d09` · eval set v1 (sha `329d815d973d`) · `metric_spec` 1.1 · grader `src/lab9/graders.py` ở commit HEAD của PR (các report được sinh lại và đối chiếu ở mỗi vòng review; grader chỉ đổi cách đọc reply, các report giữ nguyên từng byte) · seeds 11/22/33/44/55 · MockLLM · Python 3.13.5
+- **Run ID / eval set SHA:** baseline `E-swarm-20261117-c38f` · eval set v1 `c38fe0e1e779`
+- **Phiên bản:** nhánh `starter/d09` · eval set v1 (sha `c38fe0e1e779`) · `metric_spec` 1.1 · grader `src/lab9/graders.py` ở commit HEAD của PR (các report được sinh lại và đối chiếu ở mỗi vòng review; grader chỉ đổi cách đọc reply, metric và rows của mọi report giữ nguyên). Run ID / sha đổi một lần do sửa lỗi xuống dòng: trên Windows file eval set được checkout với CRLF nên sha khác với runner Linux. `sha12` giờ chuẩn hóa CRLF thành LF, và `.gitattributes` giữ dữ liệu ở LF · seeds 11/22/33/44/55 · MockLLM · Python 3.13.5
 - **Eval set:** v1, 14 item × 5 seed = 70 trial, nguồn `lab8_public` (ma trận T01–T14). Nhãn tách riêng ở `labels_v1.json`. `failure_modes` gắn theo probe (`python -m scripts.fm_probe`). `python -m lab9.evalset --check` → 0 problem
 - **Metric & ngưỡng** (`config/metric_spec.yaml`):
 
@@ -22,9 +22,9 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
 
 | Report | Run ID | pass_rate | refund_amount_correct | reply_matches_ledger | Δ pass_rate [CI] | Gate |
 |---|---|---|---|---|---|---|
-| baseline `swarm` | `E-swarm-20261117-329d` | 0.9857 | 0.9857 | 1.0 | — | — |
-| `fixed` | `E-fixed-20261117-329d` | 1.0 | 1.0 | 1.0 | +0.014 [+0.000, +0.043] | **exit 0** |
-| `seeded_regression` | `E-seeded_regression-20261117-329d` | 0.7143 | 0.8571 | 0.7857 | −0.271 [−0.500, −0.057] | **exit 1**: `refund_amount_correct, pass_rate, reply_matches_ledger` |
+| baseline `swarm` | `E-swarm-20261117-c38f` | 0.9857 | 0.9857 | 1.0 | — | — |
+| `fixed` | `E-fixed-20261117-c38f` | 1.0 | 1.0 | 1.0 | +0.014 [+0.000, +0.043] | **exit 0** |
+| `seeded_regression` | `E-seeded_regression-20261117-c38f` | 0.7143 | 0.8571 | 0.7857 | −0.271 [−0.500, −0.057] | **exit 1**: `refund_amount_correct, pass_rate, reply_matches_ledger` |
 
   Kết quả khớp tham chiếu của CHECKPOINTS (Δ −0.271, CI [−0.500, −0.057]). M3 (`python -m lab9.mutation --spec config/metric_spec.yaml --detect`): **phát hiện 100%** (20/20 dòng `seeded_regression` fail `pass_rate` được ít nhất một grader khác giải thích), **báo nhầm 0%** (0/70 dòng `fixed`).
 - **Judge:** `tone_ok` κ = 0.757, P = 0.857, R = 0.800, tỉ lệ FAIL 0.28 → hiệu chỉnh 0.30, **dùng** (theo dõi). `helpful` bị **loại** vì κ = 0.375 và R = 0.30, dưới FLOORS (ma trận 9/0/21/70). 18/21 ca bỏ sót có nhãn người `sai tiền` là reply nói sai số tiền so với ledger (FM-08), nên tiền được chấm bằng code. Chi tiết ở `docs/judge_audit.md`.
@@ -36,12 +36,12 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
   - **14 item**: CI rộng (Δ +0.014 có CI [0, +0.043]), chỉ bắt được hồi quy lớn khi chỉ dựa vào trung bình.
   - **Judge replay**: chấm trên CSV đã công khai, chưa có held-out. Có 1 nhãn người sai (H-081).
   - Chưa đo trên người dùng thật.
-  - Grader FM-08 đọc reply bằng quy tắc ngôn ngữ (vi có/không dấu, en; 43 ca test hai chiều: 25 reply trung thực, 18 reply sai). Câu diễn đạt quá lạ có thể lọt.
+  - Grader FM-08 đọc reply bằng quy tắc ngôn ngữ (vi có/không dấu, en; 46 ca test hai chiều: 27 reply trung thực, 19 reply sai, gồm cả số tiền không có đơn vị như "35.000"). Câu diễn đạt quá lạ có thể lọt.
 - **Khi nào tăng eval-set version:** khi thêm item (ví dụ biến trace case thành item với `provenance.from_trace`), đổi nhãn, hoặc thêm pack đối kháng. Sau đó chạy lại baseline trên `main` và ghi lại ngưỡng. Trong cùng một version, ngưỡng chỉ được chặt hơn (ratchet).
 
 ## v2 (Advanced / Expert)
 
-- **Run ID / eval set SHA:** baseline `E-swarm-20261117-0fad` · eval set v2 `0fad93c3cd3a` (28 item × 5 seed = 140 trial) · `metric_spec_v2` 2.0
+- **Run ID / eval set SHA:** baseline `E-swarm-20261117-591f` · eval set v2 `591f2c48c820` (28 item × 5 seed = 140 trial) · `metric_spec_v2` 2.0
 - **Eval set v2:** 14 item v1 (giữ nguyên `failure_modes` của M1) cộng 14 item từ pack đối kháng. Mỗi cơ chế tấn công được map sang FM trong `config/fm_map.yaml`. Số item theo FM: FM-02: 4, FM-03: 4, FM-04: 10, FM-05: 5, FM-06: 3, FM-07: 5, FM-08: 4, FM-09: 4 (FM nào bị tấn công cũng có ≥ 3 item). `python -m lab9.evalset --v2` → 0 problem.
 
 ### Ngưỡng chọn từ A/A
@@ -61,7 +61,7 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
 
 ### Slice nào bắt lỗi nào
 
-| PR (run ID `E-<shape>-20261117-0fad`) | pass_rate (Δ, CI 95%) | Chỉ số bắt được | Gate |
+| PR (run ID `E-<shape>-20261117-591f`) | pass_rate (Δ, CI 95%) | Chỉ số bắt được | Gate |
 |---|---|---|---|
 | `honest_refactor` | 1.0 | — (pass^5 1.0) | **exit 0** |
 | `slice_regression` (cộng clause ở seed lẻ) | 0.9357 (−0.043, [−0.121, +0.029]): trên sàn 0.85, **CI chạm 0** | **slice money_movement** 0.85 < 0.95 (Δ −0.150, CI [−0.300, +0.000]) · 9 dòng fail mới | **exit 1**: `pass_rate, slice:money_movement/pass_rate, slice:money_movement/refund_amount_correct` |

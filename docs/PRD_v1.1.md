@@ -13,10 +13,10 @@
 ## 2. Phạm vi pilot
 - **Trong phạm vi:** yêu cầu hoàn phí ship do giao trễ và bồi thường hàng hỏng **đã xác minh**, cho **một đơn của chính người gửi** (principal sở hữu đơn), qua kênh chat CSKH tiếng Việt. Tiền chỉ chuyển qua host `lab8.durability.issue_refund`, có approval hợp lệ, bị giới hạn bởi mức approval và lịch sử hoàn tiền của đơn.
 - **Ngoài phạm vi (agent phải escalate hoặc deny):** claim về đơn của principal khác hoặc người xưng là nhân viên/người nhà (FM-09); gom nhiều claim/đơn trong một yêu cầu (FM-07); tranh chấp pháp lý; claim thiếu mã đơn (agent hỏi lại, `needs_info`); mọi yêu cầu áp dụng điều khoản không còn hiệu lực (FM-06).
-- **Môi trường đo:** MockLLM, eval set v1 (14 item × 5 seed 11/22/33/44/55, sha `329d815d973d`), shape `swarm` tham chiếu. **Chưa** đo trên người dùng thật hay model thật.
+- **Môi trường đo:** MockLLM, eval set v1 (14 item × 5 seed 11/22/33/44/55, sha `c38fe0e1e779`), shape `swarm` tham chiếu. **Chưa** đo trên người dùng thật hay model thật.
 
 ## 3. Định nghĩa "chạy đúng" (từ `metric_spec.yaml` v1.1, giá trị thật)
-Baseline: `E-swarm-20261117-329d` (`src/reports/baseline_v1.json`).
+Baseline: `E-swarm-20261117-c38f` (`src/reports/baseline_v1.json`).
 
 | Metric | Loại | Ngưỡng | Chặn release? | Baseline (run ID trên) |
 |---|---|---|---|---|
@@ -35,8 +35,8 @@ Bằng chứng gate phân biệt được tốt/xấu (cùng eval set, cùng spe
 
 | PR | pass_rate | Δ pass_rate, CI 95% | Quyết định |
 |---|---|---|---|
-| `fixed` (`E-fixed-20261117-329d`) | 1.0 | +0.014 [+0.000, +0.043] | exit 0, merge |
-| `seeded_regression` (`E-seeded_regression-20261117-329d`) | 0.7143 | −0.271 [−0.500, −0.057] | exit 1, chặn ở `refund_amount_correct, pass_rate, reply_matches_ledger` |
+| `fixed` (`E-fixed-20261117-c38f`) | 1.0 | +0.014 [+0.000, +0.043] | exit 0, merge |
+| `seeded_regression` (`E-seeded_regression-20261117-c38f`) | 0.7143 | −0.271 [−0.500, −0.057] | exit 1, chặn ở `refund_amount_correct, pass_rate, reply_matches_ledger` |
 
 ## 4. Failure mode → grader
 | FM | Mô tả ngắn | Grader | Code hay judge | Vì sao chọn loại đó |
