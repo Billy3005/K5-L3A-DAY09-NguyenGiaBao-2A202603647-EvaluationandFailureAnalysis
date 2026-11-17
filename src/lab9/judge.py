@@ -30,16 +30,11 @@ def calibrate(path: Path) -> dict:
     cm = stats.confusion(human, judge)
     spec = cm["tn"] / (cm["tn"] + cm["fp"]) if cm["tn"] + cm["fp"] else 0.0
     obs = (cm["tp"] + cm["fp"]) / len(rows)
-    try:
-        corrected = round(stats.rogan_gladen(obs, r, spec), 3)
-    except ValueError:
-        corrected = None   # sens + spec <= 1: the judge is no better than chance, no correction exists
     res = {"n": len(rows), "precision": round(p, 3), "recall": round(r, 3), "kappa": round(k, 3),
            "confusion": cm, "observed_fail_rate": round(obs, 3),
-           "corrected_fail_rate": corrected,
+           "corrected_fail_rate": round(stats.rogan_gladen(obs, r, spec), 3),
            "disagreements": [x for x, h, j in zip(rows, human, judge) if h != j]}
-    # nan compares False -> fails; an uncorrectable judge (sens + spec <= 1) fails too
-    res["passed"] = corrected is not None and all(res[m] >= f for m, f in FLOORS.items())
+    res["passed"] = all(res[m] >= f for m, f in FLOORS.items())   # nan compares False -> fails
     return res
 
 
@@ -51,9 +46,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     res = calibrate(Path(args.csv))
     print(f"n={res['n']} P={res['precision']} R={res['recall']} kappa={res['kappa']} {res['confusion']}")
-    corr = res["corrected_fail_rate"]
-    print(f"fail rate observed {res['observed_fail_rate']} -> corrected "
-          f"{corr if corr is not None else 'n/a (sensitivity + specificity <= 1: judge no better than chance)'}")
+    print(f"fail rate observed {res['observed_fail_rate']} -> corrected {res['corrected_fail_rate']}")
     for row in res["disagreements"][: args.audit]:
         print(f"  {row['item_id']} human={row['human']} judge={row['judge']} | {row['reply'][:90]}")
     print("PASS floors" if res["passed"] else "FAIL floors", FLOORS)

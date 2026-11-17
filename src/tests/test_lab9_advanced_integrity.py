@@ -156,7 +156,7 @@ def test_advanced_corrupted_cost_is_refused(gate):
 
 def test_advanced_edited_baseline_rows_are_refused(gate):
     """Flip baseline verdicts to fail (summary untouched) so the PR's new failures look like old ones."""
-    from lab9 import ci_check
+    from scripts import check_baseline_rows
 
     pr = _report(fail={(0, 3), (1, 3)})
     base = _report()
@@ -164,7 +164,8 @@ def test_advanced_edited_baseline_rows_are_refused(gate):
         if (r["item_id"], r["seed"]) in {("E-000", 3), ("E-001", 3)}:
             r["pass_rate"] = False
     assert any(p.startswith("baseline") for p in gate.integrity_check(pr, base, SPEC))
-    assert ci_check.check(_report(), base, {**SPEC, "metrics": SPEC["metrics"]})
+    assert check_baseline_rows.check(_report(), base, SPEC)
+    assert check_baseline_rows.check(_report(), _report(), SPEC) == []
 
 
 def test_advanced_deleted_baseline_verdicts_are_refused(gate):

@@ -52,6 +52,30 @@ STRESS: dict[str, tuple[frozenset[str], str]] = {
     "quiet_override_rare":    (frozenset({F, "quiet_override", "rare"}), "limit"),
 }
 
+# Reply rewrites: same agent and ledger, different wording of the customer reply (applied in memory by
+# swapping lab9.variant_agent._reply for the run). amount = what the agent says it refunded.
+def _plain_int(orig, status, amount, order_id):        # "35000" -- no separator, no unit
+    return f"Dạ, LogiX đã hoàn tiền {int(amount)} cho đơn {order_id}." if status == "resolved" else orig
+
+
+def _callback_note(orig, status, amount, order_id):    # truthful extra sentence, no money promised
+    return orig + " Anh/chị sẽ nhận được phản hồi trong 3-5 ngày." if status != "resolved" else orig
+
+
+def _english(orig, status, amount, order_id):
+    if status == "resolved":
+        return f"We have refunded {int(amount):,} VND for order {order_id}."
+    return "We could not issue a refund for this request." if status == "denied" else orig
+
+
+REPLY_STRESS: dict[str, tuple[frozenset[str], object, str]] = {
+    "misreport_plain_int":    (frozenset({F, "misreport"}), _plain_int, "block"),
+    "honest_plain_int":       (frozenset({F}), _plain_int, "merge"),
+    "honest_callback_note":   (frozenset({F}), _callback_note, "merge"),
+    "honest_english":         (frozenset({F}), _english, "merge"),
+    "misreport_english":      (frozenset({F, "misreport"}), _english, "block"),
+}
+
 
 def run(spec: dict, base: dict, base_spec: dict | None, names: list[str] | None, out_dir: Path | None):
     from lab8.shapes import SHAPES
@@ -61,13 +85,22 @@ def run(spec: dict, base: dict, base_spec: dict | None, names: list[str] | None,
     todo = {**{n: (None, w) for n, w in (("swarm", "merge"), ("fixed", "merge"), ("honest_refactor", "merge"),
                                           ("seeded_regression", "block"), ("slice_regression", "block"),
                                           ("flaky_regression", "block"))},
-            **{f"stress_{n}": v for n, v in STRESS.items()}}
+            **{f"stress_{n}": v for n, v in STRESS.items()},
+            **{f"stress_{n}": (bugs, want) for n, (bugs, _, want) in REPLY_STRESS.items()}}
+    from lab9 import variant_agent
     for name, (bugs, want) in todo.items():
         if names and name not in names and name.removeprefix("stress_") not in names:
             continue
         if bugs is not None:
             SHAPES.setdefault(name, make_shape(name, bugs))
-        rep = run_eval(name, spec)
+        rewrite = REPLY_STRESS.get(name.removeprefix("stress_"), (None, None, None))[1]
+        original = variant_agent._reply
+        if rewrite is not None:
+            variant_agent._reply = lambda b, st, amt, oid, _f=rewrite: _f(original(b, st, amt, oid), st, amt, oid)
+        try:
+            rep = run_eval(name, spec)
+        finally:
+            variant_agent._reply = original
         if out_dir is not None:
             out_dir.mkdir(parents=True, exist_ok=True)
             (out_dir / f"{name}.json").write_text(json.dumps(rep, ensure_ascii=False, indent=2), encoding="utf-8")

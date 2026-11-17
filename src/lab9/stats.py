@@ -46,10 +46,12 @@ def cohen_kappa(human: Sequence[str], judge: Sequence[str]) -> float:
 
 
 def rogan_gladen(observed_rate: float, sensitivity: float, specificity: float) -> float:
-    """Correct an observed failure rate for judge error; clip to [0, 1]."""
+    """Correct an observed failure rate for judge error; clip to [0, 1].
+    Undefined when sensitivity + specificity <= 1 (a constant or inverted judge is no better than
+    chance): returns NaN, so a caller cannot mistake it for a rate and lab9.judge prints `nan`."""
     denom = sensitivity + specificity - 1
     if denom <= 0:
-        raise ValueError("Rogan-Gladen undefined: sensitivity + specificity <= 1 (judge no better than chance)")
+        return float("nan")
     return min(1.0, max(0.0, (observed_rate + specificity - 1) / denom))
 
 

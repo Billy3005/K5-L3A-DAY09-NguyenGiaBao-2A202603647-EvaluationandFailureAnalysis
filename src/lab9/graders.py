@@ -108,7 +108,10 @@ _SCALE = {"k": 1_000, "nghìn": 1_000, "ngàn": 1_000, "ngan": 1_000, "nghin": 1
 # "hoàn tất / hoàn thành / hoàn toàn ..." mean "complete(ly)", not "refund".
 _REFUND_VERB = re.compile(
     r"\b(?:hoàn|hoan)\b(?!\s+(?:tất|tat|thành|thanh(?!\s+cong)|thiện|toàn|toan|hảo|cảnh|chỉnh))"
-    r"|bồi\s+thường|boi\s+thuong|trả\s+lại|chuyển\s+(?:khoản|tiền|lại)|nhận\s+(?:được|lại)|"
+    r"|bồi\s+thường|boi\s+thuong|chuyển\s+(?:khoản|tiền)|"
+    # "trả lại / nhận được / nhận lại" are about money only when money follows:
+    # "nhận được 35k", "trả lại tiền" -- not "nhận được phản hồi", "trả lại hàng".
+    r"(?:trả\s+lại|nhận\s+(?:được|lại))\s+(?:(?:số|khoản)\s+)?(?:tiền|hoàn|\d|vnd|vnđ|₫)|"
     r"\brefund|\breimburs|\bcredited\b|\bpaid\s+back\b|\bcompensat",
     re.IGNORECASE)
 # "Số tiền: 35.000đ" next to "Bạn được hoàn tiền." -- a labelled amount is the refund amount.
@@ -150,7 +153,11 @@ def _to_vnd(num: str, unit: str) -> int:
     return int(re.sub(r"[.,\u00a0 ]", "", num))
 
 
-_BARE_AMOUNT = re.compile(r"(?<![\w.,-])(?P<num>\d{1,3}(?:[.,]\d{3})+)(?![\w.,]\d)")
+# Inside a refund clause a unit-less number is money when it has thousands separators ("35.000") or
+# 4-9 plain digits ("35000"). Order ids (O-808), ranges (3-5), times/dates and phone numbers are not.
+_BARE_AMOUNT = re.compile(
+    r"(?<![\w.,/:-])(?<!năm )(?P<num>\d{1,3}(?:[.,]\d{3})+|\d{4,9})(?![\w.,/:-]?\d)"
+    r"(?!\s*(?:ngày|giờ|phút|tháng|năm|days?|hours?|minutes?)\b)", re.IGNORECASE)
 
 
 def _money(text: str) -> list[tuple[int, int]]:
