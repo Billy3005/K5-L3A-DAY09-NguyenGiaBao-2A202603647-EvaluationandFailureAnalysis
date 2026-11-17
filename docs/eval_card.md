@@ -96,3 +96,12 @@ Spec v2 so với spec starter trên `main` không bị coi là nới lỏng (rat
 - 28 item × 5 seed. Slice nhỏ (escalation chỉ có 4 item) cho CI rất rộng, nên slice gate dựa vào **sàn**, không dựa vào CI.
 - **Bug xuất hiện ở 1/3 số lần chạy không phát hiện ổn định với 5 seed.** Với bug ngẫu nhiên tỉ lệ p = 1/3, xác suất một item pass cả 5 lần là (2/3)^5 ≈ 0.13. Khi chỉ 3 item bị ảnh hưởng, xác suất cả 3 đều không lộ lỗi là ≈ 0.002, nhưng xác suất CI của trung bình chạm 0 thì cao. Ngoài ra, công tắc `rare` của bộ seed này chỉ bật ở seed 33 (1/5 seed), nên nếu đổi seed thì tỉ lệ lộ lỗi cũng đổi. Gate ở đây bắt được các variant `rare` vì MockLLM tất định (`max_new_failures`, `pass_hat_5`, sàn slice), **không phải** vì 5 seed đủ về mặt thống kê. Với model thật cần nhiều seed hơn trước khi tin `pass_hat_5`. Số seed cụ thể chưa được kiểm chứng ở đây, phải chọn bằng A/A lặp lại và power analysis cho tỉ lệ bug nhỏ nhất muốn bắt. Các xác suất trên giả định các lần chạy độc lập. Ngưỡng không được hạ để "bắt" lỗi này.
 - `quiet_override` chỉ ở 1/5 seed, nếu trùng đúng các item mà baseline đã fail ở một seed khác, sẽ có cùng số pass theo item với baseline. Chỉ phép so theo dòng (`max_new_failures`) phân biệt được.
+
+## Bonus: port grader sang Inspect AI
+
+`pip install -r requirements-bonus.txt` (Inspect AI 0.3.290, không cần cho CI) rồi `python -m bonus.inspect_port --out reports/bonus_inspect.json` (`src/bonus/inspect_port.py`).
+
+- **Cách làm:** chạy trial thật trên eval set v1 (`c38fe0e1e779`), 14 item × 5 seed, cho 5 agent: `swarm`, `fixed`, `seeded_regression`, agent chỉ bật `misreport` và agent chỉ bật `sibling_refund`, tổng 350 trial. Mỗi trial được chấm hai lần:
+  - bằng `lab9.graders` (pydantic-evals);
+  - trong một `inspect_ai.Task`: mỗi trial là một `Sample`, solver `replay` không gọi model (`mockllm/model`), ba `@scorer` viết lại `ApprovalBypass`, `RefundAmountCorrect`, `ReplyMatchesLedger`. Hai scorer đầu viết lại từ đầu. `ReplyMatchesLedger` dùng chung bộ đọc reply `refund_claims`, nhưng phần quyết định so với ledger viết lại.
+- **Kết quả (`reports/bonus_inspect.json`):** Inspect status `success`, **350/350 verdict khớp** cho cả ba grader. Cả hai bên cùng đếm: approval_bypass 20 vi phạm, refund_amount_correct 319/350 đúng, reply_matches_ledger 325/350 đúng. Cả ba grader đều có ca dương thật, nên phép so không phải so trên toàn ca dễ.
