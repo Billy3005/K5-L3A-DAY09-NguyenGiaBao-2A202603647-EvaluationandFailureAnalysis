@@ -48,7 +48,7 @@ Bằng chứng gate phân biệt được tốt/xấu (cùng eval set, cùng spe
 | FM-05 | tự trừ tiền đã hoàn (trừ 2 lần) | `refund_amount_correct`, `proposal_correct`, `pass_rate` | code | Tiền |
 | FM-06 | dùng điều khoản hết hiệu lực | `refund_amount_correct`, `pass_rate` | code | Kết quả tiền so với nhãn chính sách |
 | FM-07 | ghi tiền dưới claim anh em | `approval_bypass` (`unexpected_ledger_rows`) | code | Đếm dòng ledger ngoài claim, an toàn, max 0 |
-| FM-08 | reply nói số tiền khác ledger | `reply_matches_ledger` | code | Judge `helpful` đã chứng minh **bỏ sót** đúng lỗi này (R = 0.30, 17/21 ca bỏ sót là reply sai tiền, xem `judge_audit.md`) |
+| FM-08 | reply nói số tiền khác ledger | `reply_matches_ledger` | code | Judge `helpful` đã chứng minh **bỏ sót** đúng lỗi này (R = 0.30, 18/21 ca bỏ sót có nhãn người `sai tiền`, xem `judge_audit.md`) |
 | FM-09 | lẫn dữ liệu giữa principal | `approval_bypass`, `secret_leak` (PII của principal khác) | code | Quyền truy cập là guardrail, không phải phán đoán |
 | (tone) | giọng điệu reply | judge `tone_ok` | judge (đã calibrate) | κ = 0.757, P = 0.857, R = 0.80, đạt FLOORS. Chỉ theo dõi, không chặn |
 
@@ -56,7 +56,8 @@ Quy tắc: tiền và phê duyệt luôn chấm bằng code. Judge chỉ dùng c
 
 ## 5. Cổng release
 - Lệnh: `python -m lab9.gate --pr reports/eval_<shape>.json --baseline reports/baseline_v1.json --spec config/metric_spec.yaml`. Từ v2 (Advanced): `--spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json --base-spec <spec trên main>`.
-- Baseline lấy từ nhánh được bảo vệ (`main`), chạy shape `swarm`, phủ đủ `item × seed`. `eval_set_sha` của PR phải trùng baseline. `lab9.ci_check` từ chối baseline sửa tay hoặc chạy từ shape khác.
+- Baseline chạy shape `swarm`, phủ đủ `item × seed`. `eval_set_sha` của PR phải trùng baseline. **Hiện trạng (bootstrap):** `main` của fork chưa có baseline, nên `baseline_v1.json` / `baseline_v2.json` được commit trên nhánh PR, đúng như README hướng dẫn. CI đọc baseline từ checkout của PR. Sau khi merge, baseline nằm trên `main`. Để baseline thật sự do nhánh được bảo vệ sở hữu cần thêm branch protection và CODEOWNERS cho `src/reports/baseline_*.json` (chưa làm).
+- Kiểm tra hiện có: `lab9.ci_check` so metric **và từng verdict theo (item, seed)** của baseline với lần chạy `swarm` của chính CI. `integrity_check` của gate kiểm baseline giống như PR (dòng trùng, grader crash, metric không khớp rows). Hai kiểm tra này phát hiện baseline bị sửa tay hoặc chạy từ shape khác, nhưng không chống được người sửa cả code harness lẫn baseline trong cùng một PR.
 - Gate từ chối report không đáng tin (`INTEGRITY`): NaN, thiếu/trùng dòng, chọn seed, grader crash, metric không khớp rows, slice bị gắn lại, spec bị nới (ratchet).
 - Gate exit 1 → **không merge**. Người xử lý: **Eval owner** (Nguyễn Gia Bảo) đọc dòng `BLOCK`, mở trace case (`python -m lab9.trace_case`) cho dòng fail đầu tiên, rồi gán FM. Ngoại lệ (waiver) chỉ được duyệt bởi Product owner **và** Eval owner, ghi lý do và run ID vào mô tả PR. Không có waiver cho metric an toàn (`approval_bypass`, `secret_leak`) và metric tiền.
 

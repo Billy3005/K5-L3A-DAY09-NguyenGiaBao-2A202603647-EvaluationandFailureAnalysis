@@ -95,6 +95,18 @@ def integrity_check(pr: dict, base: dict, spec: dict, base_spec: dict | None = N
     if rows and not holes:
         problems += _recompute_mismatch(pr, rows, graded, spec)
 
+    # 5b. the baseline is evidence too: an edited baseline row moves every comparison
+    if brows:
+        bpc = Counter((r.get("item_id"), r.get("seed")) for r in brows)
+        if any(n > 1 for n in bpc.values()):
+            problems.append("baseline has duplicated (item, seed) rows")
+        if base.get("evaluator_failures"):
+            problems.append(f"baseline has {len(base['evaluator_failures'])} evaluator failure(s)")
+        bholes = Counter(m for r in brows for m in graded if m in r and not isinstance(r.get(m), bool))
+        problems += [f"baseline: {n} row(s) with no verdict for {m}" for m, n in sorted(bholes.items())]
+        if not bholes:
+            problems += [f"baseline: {x}" for x in _recompute_mismatch(base, brows, graded, spec)]
+
     # 6. ratchet: same eval set => thresholds only get stricter. A renamed eval_set_version over the
     #    same items (same eval_set_sha as the baseline) is still the same eval set.
     if base_spec is not None and (base_spec.get("eval_set_version") == spec.get("eval_set_version")

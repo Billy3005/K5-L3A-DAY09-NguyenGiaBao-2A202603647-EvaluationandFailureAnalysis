@@ -100,6 +100,8 @@ _AMOUNT = re.compile(
     r"(?P<num>\d{1,3}(?:[.,\u00a0 ]\d{3})+|\d+(?:[.,]\d+)?)\s*"
     r"(?P<unit>vnđ|vnd|đồng|dong|đ|₫|k|nghìn|ngàn|ngan|nghin|tr|triệu|trieu)(?!\w)",
     re.IGNORECASE)
+_AMOUNT_PREFIX = re.compile(r"(?<!\w)(?P<unit>vnđ|vnd|₫)\s*(?P<num>\d{1,3}(?:[.,\u00a0 ]\d{3})+|\d+)(?![\d\w])",
+                            re.IGNORECASE)
 _SCALE = {"k": 1_000, "nghìn": 1_000, "ngàn": 1_000, "ngan": 1_000, "nghin": 1_000,
           "tr": 1_000_000, "triệu": 1_000_000, "trieu": 1_000_000}
 # A clause about the refund itself: Vietnamese (with or without diacritics) or English.
@@ -113,8 +115,8 @@ _REFUND_VERB = re.compile(
 _AMOUNT_LABEL = re.compile(r"\bsố\s+tiền\b|\bkhoản\s+tiền\b|\btổng\s+(?:tiền\s+)?hoàn\b|\b(?:refund\s+)?amount\b|"
                            r"\btotal\s+refund\b", re.IGNORECASE)
 # The clause is about an EARLIER refund event.
-_EARLIER = re.compile(r"trước\s+(?:đây|đó|kia)|lần\s+trước|đã\s+từng|\bpreviously\b|\bearlier\b|\blast\s+time\b|"
-                      r"\bbefore\b", re.IGNORECASE)
+_EARLIER = re.compile(r"trước\s+(?:đây|đó|kia)|lần\s+trước|đã\s+từng|\bpreviously\b|\bearlier\b|\blast\s+time\b|\bin\s+the\s+past\b|"
+                      r"\bbefore\s+(?:this|now)\b|\bprior\s+refund", re.IGNORECASE)
 # The clause says the refund is refused / not done (anywhere in the clause).
 _REFUSED = re.compile(
     r"từ\s+chối|(?:chưa|không)\s+đủ\s+điều\s+kiện|không\s+thuộc\s+diện|"
@@ -129,7 +131,8 @@ _REQUEST = re.compile(r"\byêu\s+cầu\b|\bđề\s+nghị\b|\bmong\s+muốn\b|\b
                       re.IGNORECASE)
 # ... unless it also says the money was (being) handled.
 _DONE = re.compile(r"\bđã\b|\brồi\b|thành\s+công|\bxong\b|\bđang\b|\bsẽ\b|\bđược\s+(?:xử\s+lý|duyệt|chuyển)\b|"
-                   r"\bprocessed\b|\bcompleted\b|\bapproved\b|\bissued\b|\bhave\b|\bhas\b|\bwas\b|\bwill\b",
+                   r"\bprocessed\b|\bcompleted\b|\bapproved\b|\bissued\b|\brefunded\b|\bcredited\b|\bpaid\b|"
+                   r"\bsent\b|\bhave\b|\bhas\b|\bwas\b|\bwill\b",
                    re.IGNORECASE)
 # Words right before an amount that make it context, not the refund: the fee it came out of, the
 # original price, what was asked "instead".
@@ -137,7 +140,7 @@ _CONTEXT = re.compile(r"\btừ\b|\btrên\b|thay\s+vì|phụ\s+phí|\bgốc\b|ban
                       r"\bfrom\b|\binstead\s+of\b|\bout\s+of\b|\boriginal(?:ly)?\b|\brather\s+than\b",
                       re.IGNORECASE)
 # Split into clauses at . ; ! ? , or newline (never inside "35.000" / "35,000") and at conjunctions.
-_CLAUSE = re.compile(r"[.;!?,\n](?!\d)|\s(?:và|nhưng|còn|nên|vì|do|and|but|so|because)\s", re.IGNORECASE)
+_CLAUSE = re.compile(r"[.;!?,\n](?!\d)|[()\[\]]|\s(?:và|nhưng|còn|nên|vì|do|and|but|so|because)\s", re.IGNORECASE)
 
 
 def _to_vnd(num: str, unit: str) -> int:
@@ -147,9 +150,19 @@ def _to_vnd(num: str, unit: str) -> int:
     return int(re.sub(r"[.,  ]", "", num))
 
 
+def _money(text: str) -> list[tuple[int, int]]:
+    """(start offset, amount in VND) for every amount, currency after ("35.000đ") or before ("VND 35,000")."""
+    found = [(m.start(), _to_vnd(m["num"], m["unit"])) for m in _AMOUNT.finditer(text)]
+    taken = [(m.start(), m.end()) for m in _AMOUNT.finditer(text)]
+    for m in _AMOUNT_PREFIX.finditer(text):
+        if not any(a < m.end() and m.start() < b for a, b in taken):
+            found.append((m.start(), _to_vnd(m["num"], m["unit"])))
+    return sorted(found)
+
+
 def reply_amounts(text: str) -> tuple[list[int], list[int]]:
     """(every money amount in the text, the amounts the reply asserts for THIS refund)."""
-    every = [_to_vnd(m["num"], m["unit"]) for m in _AMOUNT.finditer(text)]
+    every = [v for _, v in _money(text)]
     return every, refund_claims(text)[0]
 
 
@@ -183,10 +196,10 @@ def refund_claims(text: str) -> tuple[list[int], bool]:
             continue
         if _REQUEST.search(clause) and not _DONE.search(clause):
             continue
-        for m in _AMOUNT.finditer(clause):
-            if _CONTEXT.search(" ".join(_words_before(clause, m.start(), 4))):
+        for start, value in _money(clause):
+            if _CONTEXT.search(" ".join(_words_before(clause, start, 4))):
                 continue
-            amounts.append(_to_vnd(m["num"], m["unit"]))
+            amounts.append(value)
         asserted = asserted or bool(verb) or bool(amounts)
     return amounts, asserted
 

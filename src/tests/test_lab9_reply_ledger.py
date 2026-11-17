@@ -44,6 +44,11 @@ HONEST = [
     ("Bạn được hoàn tiền. Số tiền: 20.000đ.", 20000),
     ("The refund was not issued because the approval expired.", 0),
     ("Dạ, LogiX không hoàn phí ship 35.000đ vì approval đã hết hạn.", 0),
+    # review round 3
+    ("LogiX đã hoàn 20.000đ (phí ship: 35.000đ).", 20000),
+    ("Your refund of VND 20,000 has been processed.", 20000),
+    ("We refunded 20,000 VND before closing your request.", 20000),
+    ("A refund of 35,000 VND was made previously; this time we refunded 20,000 VND.", 20000),
 ]
 
 FALSE_CLAIMS = [
@@ -63,6 +68,10 @@ FALSE_CLAIMS = [
     ("Bạn được hoàn tiền. Số tiền: 35.000đ.", 20000),
     ("Bạn được hoàn tiền. Số tiền: 35.000đ.", 0),
     ("LogiX đã hoàn phí 35.000đ cho đơn O-107 của anh/chị ạ.", 20000),   # paraphrase template + misreport
+    # review round 3
+    ("We refunded 35,000 VND before closing your request.", 20000),
+    ("Your refund of VND 35,000 has been processed.", 20000),
+    ("Your refund of ₫35.000 has been processed.", 0),
 ]
 
 

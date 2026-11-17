@@ -41,6 +41,16 @@ def check(pr: dict, base: dict, spec: dict) -> list[str]:
     for k in shared:
         if not _same(base["metrics"][k], pr["metrics"][k]):
             problems.append(f"baseline metric {k} differs from CI's swarm run: re-run, never hand-edit")
+    # Row by row too: an edited baseline verdict with an untouched summary would pass the check above.
+    graded = [m["id"] for m in spec["metrics"] if m["id"] in GRADERS]
+    ci_rows = {(r.get("item_id"), r.get("seed")): r for r in pr.get("rows") or []}
+    base_rows = {(r.get("item_id"), r.get("seed")): r for r in base.get("rows") or []}
+    if set(ci_rows) != set(base_rows) or len(base_rows) != len(base.get("rows") or []):
+        problems.append("baseline (item, seed) rows differ from CI's swarm run: re-run, never hand-edit")
+    diff = sorted(f"{k[0]}@{k[1]}:{m}" for k in set(ci_rows) & set(base_rows) for m in graded
+                  if m in ci_rows[k] and base_rows[k].get(m) != ci_rows[k][m])
+    if diff:
+        problems.append(f"baseline verdicts differ from CI's swarm run in {len(diff)} cell(s), e.g. {diff[0]}")
     own = [m for m in spec["metrics"] if m["id"] not in STARTER_METRICS
            and m.get("kind") == "capability" and m.get("blocking")]
     if not own:

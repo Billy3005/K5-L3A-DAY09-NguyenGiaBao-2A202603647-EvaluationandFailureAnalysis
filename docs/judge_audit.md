@@ -16,7 +16,7 @@ Lớp dương là `FAIL` (việc của judge là *tìm* reply hỏng). Ngưỡng
 
 Vì sao loại `helpful` dù precision = 1.0: judge này chỉ bắt được 9/30 reply mà người chấm cho là hỏng. Nó báo tỉ lệ lỗi 9%, trong khi tỉ lệ thật sau hiệu chỉnh là 30%. Một gate dùng judge này sẽ cho qua khoảng 70% reply hỏng, nên chỉ trông có vẻ an toàn. Precision cao chỉ có nghĩa là khi judge đã nói FAIL thì nó đúng, chứ không có nghĩa là nó tìm ra được lỗi.
 
-Quan trọng hơn, lỗi của `helpful` có quy luật. 17/21 ca judge bỏ sót có ghi chú "ledger ghi X", tức reply nêu **số tiền khác ledger**. Đây chính là FM-08. Judge chấm theo độ dài và độ lịch sự của câu xin lỗi, nên bị những reply dài dòng như "thành thật xin lỗi… rất trân trọng…" đánh lừa. Vì vậy FM-08 được chấm bằng code (`reply_matches_ledger`, đối chiếu reply với ledger), không bằng judge.
+Quan trọng hơn, lỗi của `helpful` có quy luật. 18/21 ca judge bỏ sót có nhãn người `human_failure = sai tiền` (ghi chú "ledger ghi X"), tức reply nêu **số tiền khác ledger**. Đây chính là FM-08. 3 ca còn lại là `sai xưng hô` (HL-047, HL-091, HL-097: "Ok bạn, … nhé"). *Giả thuyết* (CSV replay không lưu prompt hay lập luận của judge, nên chưa kiểm chứng được): judge không được cấp ledger và bị những reply dài dòng như "thành thật xin lỗi… rất trân trọng…" làm lệch. Dù nguyên nhân là gì, ma trận nhầm lẫn đã đủ để loại judge này. Vì vậy FM-08 được chấm bằng code (`reply_matches_ledger`, đối chiếu reply với ledger), không bằng judge.
 
 ## Audit thủ công 8 ca bất đồng
 
@@ -28,10 +28,10 @@ Quan trọng hơn, lỗi của `helpful` có quy luật. 17/21 ca judge bỏ só
 | 4 | tone H-051 "LogiX đã refund 90.000đ…" | FAIL | PASS | **Người** | Thêm danh sách từ mượn CS LogiX cho phép (*refund*, *ship*, *voucher*) vào rubric. Judge không được phạt các từ này |
 | 5 | tone H-081 "đơn O-107 chưa đủ điều kiện hoàn…" | FAIL | PASS | **Judge** (ghi chú: người đọc nhầm ticket) | Sửa **nhãn người** thành FAIL trong bộ nhãn lần sau. Ghi lại để biết nhãn người cũng có nhiễu. Đây là lý do cần 2 người gán nhãn và đo κ giữa người với người |
 | 6 | tone H-063 "…đã hoàn 20.000đ và sẽ hoàn thêm…" | PASS | FAIL | **Người** | Đây không phải lỗi giọng điệu mà là hứa hẹn ngoài hệ thống. Tách khỏi tone: chuyển sang grader code "reply chỉ được nêu số tiền có trong ledger" (cùng họ với `reply_matches_ledger`). Rubric tone ghi rõ là không chấm nội dung tiền |
-| 7 | helpful HL-015 "LogiX đã hoàn 55.000đ cho đơn O-112 ạ." (ledger 40.000đ) | PASS | FAIL | **Người** | Judge không có ledger nên không thể chấm đúng. Không sửa prompt judge mà **bỏ tiêu chí tiền khỏi helpful**, để `reply_matches_ledger` (code) chấm. Đã có trong `metric_spec.yaml` |
-| 8 | helpful HL-047 "Ok bạn, đơn O-515 xử lý rồi nhé." | PASS | FAIL | **Người** | Reply không nêu kết quả (hoàn bao nhiêu, hay bị từ chối). Rubric helpful thêm: "phải nêu quyết định và số tiền (nếu có)". Muốn dùng lại judge này phải calibrate lại trên tập held-out mới |
+| 7 | helpful HL-015 "LogiX đã hoàn 55.000đ cho đơn O-112 ạ." (ledger 40.000đ) | PASS | FAIL | **Người** | Nếu judge không được cấp ledger (giả thuyết, replay không lưu prompt) thì nó không thể chấm đúng. Không sửa prompt judge mà **bỏ tiêu chí tiền khỏi helpful**, để `reply_matches_ledger` (code) chấm. Đã có trong `metric_spec.yaml` |
+| 8 | helpful HL-047 "Ok bạn, đơn O-515 xử lý rồi nhé." (nhãn người: `sai xưng hô`) | PASS | FAIL | **Người** | Xưng "bạn" + "nhé" với khách khiếu nại, và reply không nêu kết quả (hoàn bao nhiêu hay bị từ chối). Rubric helpful thêm: "phải nêu quyết định và số tiền (nếu có)". Xưng hô chuyển sang tiêu chí tone (đã calibrate). Muốn dùng lại judge này phải calibrate lại trên tập held-out mới |
 
-Nhận xét chung: ở `tone`, 6/10 bất đồng là judge **bỏ sót** (người FAIL, judge PASS), toàn ở lỗi xưng hô và giọng ra lệnh. 3/10 là judge phạt quá tay (thiếu xin lỗi, từ mượn, lặp từ). 1/10 là nhãn người sai. Sửa rubric theo các hành động 1–4 nhắm vào chính các nhóm lỗi này.
+Nhận xét chung: ở `tone`, 6/10 bất đồng là judge **bỏ sót** (người FAIL, judge PASS), gồm 2 xưng hô suồng sã (H-008, H-017), 1 giọng ra lệnh (H-029), 1 hứa hẹn ngoài hệ thống (H-063), 1 emoji (H-070), 1 mất dấu tiếng Việt (H-094). 3/10 là judge phạt quá tay (thiếu xin lỗi, từ mượn, lặp từ). 1/10 là nhãn người sai. Sửa rubric theo các hành động 1–4 nhắm vào chính các nhóm lỗi này.
 
 ## Kết luận
 

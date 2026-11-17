@@ -5,7 +5,7 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
 ## v1 (Core)
 
 - **Run ID / eval set SHA:** baseline `E-swarm-20261117-329d` · eval set v1 `329d815d973d`
-- **Phiên bản:** nhánh `starter/d09` · eval set v1 (sha `329d815d973d`) · `metric_spec` 1.1 · grader `src/lab9/graders.py` (commit `c058051`) · seeds 11/22/33/44/55 · MockLLM · Python 3.13.5
+- **Phiên bản:** nhánh `starter/d09` · eval set v1 (sha `329d815d973d`) · `metric_spec` 1.1 · grader `src/lab9/graders.py` ở commit HEAD của PR (các report được sinh lại và đối chiếu ở mỗi vòng review; grader chỉ đổi cách đọc reply, các report giữ nguyên từng byte) · seeds 11/22/33/44/55 · MockLLM · Python 3.13.5
 - **Eval set:** v1, 14 item × 5 seed = 70 trial, nguồn `lab8_public` (ma trận T01–T14). Nhãn tách riêng ở `labels_v1.json`. `failure_modes` gắn theo probe (`python -m scripts.fm_probe`). `python -m lab9.evalset --check` → 0 problem
 - **Metric & ngưỡng** (`config/metric_spec.yaml`):
 
@@ -27,7 +27,7 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
 | `seeded_regression` | `E-seeded_regression-20261117-329d` | 0.7143 | 0.8571 | 0.7857 | −0.271 [−0.500, −0.057] | **exit 1**: `refund_amount_correct, pass_rate, reply_matches_ledger` |
 
   Kết quả khớp tham chiếu của CHECKPOINTS (Δ −0.271, CI [−0.500, −0.057]). M3 (`python -m lab9.mutation --spec config/metric_spec.yaml --detect`): **phát hiện 100%** (20/20 dòng `seeded_regression` fail `pass_rate` được ít nhất một grader khác giải thích), **báo nhầm 0%** (0/70 dòng `fixed`).
-- **Judge:** `tone_ok` κ = 0.757, P = 0.857, R = 0.800, tỉ lệ FAIL 0.28 → hiệu chỉnh 0.30, **dùng** (theo dõi). `helpful` bị **loại** vì κ = 0.375 và R = 0.30, dưới FLOORS (ma trận 9/0/21/70). 17/21 ca bỏ sót là reply nói sai số tiền so với ledger (FM-08), nên tiền được chấm bằng code. Chi tiết ở `docs/judge_audit.md`.
+- **Judge:** `tone_ok` κ = 0.757, P = 0.857, R = 0.800, tỉ lệ FAIL 0.28 → hiệu chỉnh 0.30, **dùng** (theo dõi). `helpful` bị **loại** vì κ = 0.375 và R = 0.30, dưới FLOORS (ma trận 9/0/21/70). 18/21 ca bỏ sót có nhãn người `sai tiền` là reply nói sai số tiền so với ledger (FM-08), nên tiền được chấm bằng code. Chi tiết ở `docs/judge_audit.md`.
 - **Trace case:** `docs/trace_case.md`: `seeded_regression` C-002@11. Bước sai đầu tiên là event 3 `model_override {"delay_days": 5}` (FM-03). Regression test: `tests/test_lab9_trace_case.py`, gồm thêm một test FM-08 cho C-008@11.
 - **Gate owner:** Eval owner Nguyễn Gia Bảo. Khi gate exit 1: đọc các dòng `BLOCK`/`INTEGRITY`, chạy `lab9.trace_case` cho dòng fail đầu tiên, gán FM, trả về tác giả PR. Không waiver cho metric an toàn và metric tiền (xem `docs/PRD_v1.1.md` mục 5).
 - **Phạm vi pilot:** hoàn phí ship / bồi thường hàng hỏng đã xác minh cho đơn của chính người gửi, kênh chat tiếng Việt. Claim liên principal, gom đơn và tranh chấp phải escalate.
@@ -36,7 +36,7 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
   - **14 item**: CI rộng (Δ +0.014 có CI [0, +0.043]), chỉ bắt được hồi quy lớn khi chỉ dựa vào trung bình.
   - **Judge replay**: chấm trên CSV đã công khai, chưa có held-out. Có 1 nhãn người sai (H-081).
   - Chưa đo trên người dùng thật.
-  - Grader FM-08 đọc reply bằng quy tắc ngôn ngữ (vi có/không dấu, en; 26 ca test hai chiều). Câu diễn đạt quá lạ có thể lọt.
+  - Grader FM-08 đọc reply bằng quy tắc ngôn ngữ (vi có/không dấu, en; 43 ca test hai chiều: 25 reply trung thực, 18 reply sai). Câu diễn đạt quá lạ có thể lọt.
 - **Khi nào tăng eval-set version:** khi thêm item (ví dụ biến trace case thành item với `provenance.from_trace`), đổi nhãn, hoặc thêm pack đối kháng. Sau đó chạy lại baseline trên `main` và ghi lại ngưỡng. Trong cùng một version, ngưỡng chỉ được chặt hơn (ratchet).
 
 ## v2 (Advanced / Expert)
@@ -94,5 +94,5 @@ Spec v2 so với spec starter trên `main` không bị coi là nới lỏng (rat
 ### Giới hạn cỡ mẫu (v2)
 
 - 28 item × 5 seed. Slice nhỏ (escalation chỉ có 4 item) cho CI rất rộng, nên slice gate dựa vào **sàn**, không dựa vào CI.
-- **Bug xuất hiện ở 1/3 số lần chạy không phát hiện ổn định với 5 seed.** Với bug ngẫu nhiên tỉ lệ p = 1/3, xác suất một item pass cả 5 lần là (2/3)^5 ≈ 0.13. Khi chỉ 3 item bị ảnh hưởng, xác suất cả 3 đều không lộ lỗi là ≈ 0.002, nhưng xác suất CI của trung bình chạm 0 thì cao. Ngoài ra, công tắc `rare` của bộ seed này chỉ bật ở seed 33 (1/5 seed), nên nếu đổi seed thì tỉ lệ lộ lỗi cũng đổi. Gate ở đây bắt được các variant `rare` vì MockLLM tất định (`max_new_failures`, `pass_hat_5`, sàn slice), **không phải** vì 5 seed đủ về mặt thống kê. Với model thật cần nhiều seed hơn (ví dụ 15–20) trước khi tin `pass_hat_5`. Mình không hạ ngưỡng để "bắt" lỗi này.
+- **Bug xuất hiện ở 1/3 số lần chạy không phát hiện ổn định với 5 seed.** Với bug ngẫu nhiên tỉ lệ p = 1/3, xác suất một item pass cả 5 lần là (2/3)^5 ≈ 0.13. Khi chỉ 3 item bị ảnh hưởng, xác suất cả 3 đều không lộ lỗi là ≈ 0.002, nhưng xác suất CI của trung bình chạm 0 thì cao. Ngoài ra, công tắc `rare` của bộ seed này chỉ bật ở seed 33 (1/5 seed), nên nếu đổi seed thì tỉ lệ lộ lỗi cũng đổi. Gate ở đây bắt được các variant `rare` vì MockLLM tất định (`max_new_failures`, `pass_hat_5`, sàn slice), **không phải** vì 5 seed đủ về mặt thống kê. Với model thật cần nhiều seed hơn trước khi tin `pass_hat_5`. Số seed cụ thể chưa được kiểm chứng ở đây, phải chọn bằng A/A lặp lại và power analysis cho tỉ lệ bug nhỏ nhất muốn bắt. Các xác suất trên giả định các lần chạy độc lập. Mình không hạ ngưỡng để "bắt" lỗi này.
 - `quiet_override` chỉ ở 1/5 seed, nếu trùng đúng các item mà baseline đã fail ở một seed khác, sẽ có cùng số pass theo item với baseline. Chỉ phép so theo dòng (`max_new_failures`) phân biệt được.
