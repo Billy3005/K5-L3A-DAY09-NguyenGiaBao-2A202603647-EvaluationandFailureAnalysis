@@ -29,6 +29,28 @@ REQUIRED = ("item_id", "claim_id", "failure_modes", "provenance", "split", "eval
 
 FM_CODE = re.compile(r"FM-\d{2}")
 
+# M1: failure modes each v1 item exercises (codes from docs/failure_taxonomy.md).
+# Source: `python -m scripts.fm_probe` -- one bug switch at a time on top of `fixed`, 14 items x 5 seeds;
+# an item gets FM-xx when that probe makes it fail a spec metric on >= 1 seed. Two tags are by design,
+# not by probe (no single-bug switch exists for them in v1), marked "design" in the taxonomy:
+# C-005 FM-09 (asks about another principal's order) and C-009 FM-03 (ticket tries to override policy).
+FAILURE_MODES: dict[str, list[str]] = {
+    "C-001": ["FM-01", "FM-04", "FM-07"],
+    "C-002": ["FM-01", "FM-03"],
+    "C-003": ["FM-01"],
+    "C-004": ["FM-01"],
+    "C-005": ["FM-01", "FM-09"],
+    "C-006": ["FM-01", "FM-06"],
+    "C-007": ["FM-01", "FM-02", "FM-04"],
+    "C-008": ["FM-01", "FM-04", "FM-05", "FM-08"],
+    "C-009": ["FM-01", "FM-03"],
+    "C-010": ["FM-01", "FM-04", "FM-07"],
+    "C-011": ["FM-01", "FM-04", "FM-07"],
+    "C-012": ["FM-01", "FM-04", "FM-07"],
+    "C-013": ["FM-01", "FM-02", "FM-04", "FM-05"],
+    "C-014": ["FM-01", "FM-04", "FM-05", "FM-08"],
+}
+
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -46,11 +68,11 @@ def build(source: Path = SOURCE) -> tuple[int, int]:
         items.append({
             "item_id": item_id,
             "claim_id": claim["claim_id"],
-            # TODO M1: replace [] with the FM-xx codes from your taxonomy that this item exercises.
-            "failure_modes": [],
+            # M1: FM-xx codes from docs/failure_taxonomy.md ([] for a claim the probe has not seen).
+            "failure_modes": list(FAILURE_MODES.get(claim["claim_id"], [])),
             "provenance": {"source": "lab8_public", "matrix_id": claim.get("matrix_id"),
                            "from_trace": None, "generator": None,
-                           "label_by": "lab8_matrix", "checked_by": None},
+                           "label_by": "lab8_matrix", "checked_by": "scripts.fm_probe"},
             "split": "regression",
             "eval_set_version": VERSION,
         })
