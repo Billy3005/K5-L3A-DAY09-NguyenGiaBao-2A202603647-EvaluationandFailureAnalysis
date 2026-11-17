@@ -5,7 +5,7 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
 ## v1 (Core)
 
 - **Run ID / eval set SHA:** baseline `E-swarm-20261117-c38f` · eval set v1 `c38fe0e1e779`
-- **Phiên bản:** nhánh `starter/d09` · eval set v1 (sha `c38fe0e1e779`) · `metric_spec` 1.1 · grader `src/lab9/graders.py` ở commit HEAD của PR (các report được sinh lại và đối chiếu ở mỗi vòng review; grader chỉ đổi cách đọc reply, metric và rows của mọi report giữ nguyên). Run ID / sha đổi một lần do sửa lỗi xuống dòng: trên Windows file eval set được checkout với CRLF nên sha khác với runner Linux. `sha12` giờ chuẩn hóa CRLF thành LF, và `.gitattributes` giữ dữ liệu ở LF · seeds 11/22/33/44/55 · MockLLM · Python 3.13.5
+- **Phiên bản:** nhánh `starter/d09` · eval set v1 (sha `c38fe0e1e779`) · `metric_spec` 1.1 · code + grader commit `65880c8` (`src/lab9/graders.py`, `gate.py`, `stats.py`). Các report được sinh lại và đối chiếu ở mỗi vòng review: grader chỉ đổi cách đọc reply, còn metric và rows của mọi report giữ nguyên. Run ID / sha đổi một lần do sửa lỗi xuống dòng: trên Windows file eval set được checkout với CRLF nên sha khác với runner Linux. `sha12` giờ chuẩn hóa CRLF thành LF, và `.gitattributes` giữ dữ liệu ở LF · seeds 11/22/33/44/55 · MockLLM · Python 3.13.5
 - **Eval set:** v1, 14 item × 5 seed = 70 trial, nguồn `lab8_public` (ma trận T01–T14). Nhãn tách riêng ở `labels_v1.json`. `failure_modes` gắn theo probe (`python -m scripts.fm_probe`). `python -m lab9.evalset --check` → 0 problem
 - **Metric & ngưỡng** (`config/metric_spec.yaml`):
 
@@ -36,7 +36,7 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
   - **14 item**: CI rộng (Δ +0.014 có CI [0, +0.043]), chỉ bắt được hồi quy lớn khi chỉ dựa vào trung bình.
   - **Judge replay**: chấm trên CSV đã công khai, chưa có held-out. Có 1 nhãn người sai (H-081).
   - Chưa đo trên người dùng thật.
-  - Grader FM-08 đọc reply bằng quy tắc ngôn ngữ (vi có/không dấu, en; 46 ca test hai chiều: 27 reply trung thực, 19 reply sai, gồm cả số tiền không có đơn vị như "35.000"). Câu diễn đạt quá lạ có thể lọt.
+  - Grader FM-08 đọc reply bằng quy tắc ngôn ngữ (vi có/không dấu, en; 53 ca test hai chiều: 32 reply trung thực, 21 reply sai, gồm cả số tiền không có đơn vị như "35.000" hay "35000"). Câu diễn đạt quá lạ có thể lọt.
 - **Khi nào tăng eval-set version:** khi thêm item (ví dụ biến trace case thành item với `provenance.from_trace`), đổi nhãn, hoặc thêm pack đối kháng. Sau đó chạy lại baseline trên `main` và ghi lại ngưỡng. Trong cùng một version, ngưỡng chỉ được chặt hơn (ratchet).
 
 ## v2 (Advanced / Expert)
@@ -46,7 +46,7 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
 
 ### Ngưỡng chọn từ A/A
 
-`python -m lab9.mutation --spec config/metric_spec_v2.yaml --aa 66,77,88,99,110` (swarm trên seed của spec so với bộ seed thứ hai): **Δ = +0.0000 trên cả 15 metric**, ví dụ pass_rate 0.9786 / 0.9786, pass_hat_5 0.8929 / 0.8929.
+`python -m lab9.mutation --spec config/metric_spec_v2.yaml --aa 66,77,88,99,110` (swarm trên seed của spec so với bộ seed thứ hai): **Δ = +0.0000 trên cả 15 metric**, ví dụ pass_rate 0.9786 / 0.9786, pass_hat_5 0.8929 / 0.8929. Tất định theo **từng dòng** (cơ sở cho `max_new_failures: 0`): chạy lại swarm trên cùng seed rồi so với baseline bằng `python -m scripts.check_baseline_rows --pr <lần chạy mới> --baseline reports/baseline_v2.json --spec config/metric_spec_v2.yaml` cho `exit 0 — every baseline verdict reproduces` (140/140 dòng, mọi metric; v1: 70/70).
 
 | Metric v2 | Baseline | Ngưỡng | Vì sao |
 |---|---|---|---|
@@ -70,7 +70,7 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
 
 Scorecard công khai `python -m lab9.mutation --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json`: **3/3 regression bị chặn, 0 báo nhầm**. Với `slice_regression`, gate chỉ dựa trên trung bình (sàn + CI) sẽ merge. Slice `money_movement` chặn được nó. Với `flaky_regression`, CI của trung bình lần này nằm dưới 0 nhưng sát (−0.014), nên không ổn định khi đổi seed. `pass_hat_5` mới là cách chặn có chủ đích.
 
-**Kiểm thêm với variant giống ẩn** (`python -m scripts.gate_stress --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json --base-spec config/metric_spec_v2.yaml`): 20 regression ghép từ các công tắc của `variant_agent` (FM-03 không để lại event `model_override`, FM-08 reply sai tiền kể cả khi chỉ ở 1/5 seed hoặc có paraphrase, stale_clause / ignore_denied / pre_deducted / sum_parts / sibling_refund / leaky_trace ở seed lẻ hoặc 1/5 seed) đều bị chặn: **20/20**. 6 PR trung thực (`fixed`, `honest_refactor`, paraphrase, extra_lookup, swarm + refactor, swarm so với chính nó) đều merge: **0/6 báo nhầm**.
+**Kiểm thêm với variant giống ẩn** (`python -m scripts.gate_stress --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json --base-spec config/metric_spec_v2.yaml`): 20 regression ghép từ các công tắc của `variant_agent` (FM-03 không để lại event `model_override`, FM-08 reply sai tiền kể cả khi chỉ ở 1/5 seed hoặc có paraphrase, stale_clause / ignore_denied / pre_deducted / sum_parts / sibling_refund / leaky_trace ở seed lẻ hoặc 1/5 seed) cùng 2 regression chỉ khác cách viết reply (số tiền dạng số nguyên trơn "35000", reply tiếng Anh) đều bị chặn: **22/22**. 9 PR trung thực (`fixed`, `honest_refactor`, paraphrase, extra_lookup, swarm + refactor, swarm so với chính nó, reply ghi số trơn, reply thêm câu "sẽ nhận được phản hồi trong 3-5 ngày", reply tiếng Anh) đều merge: **0/9 báo nhầm**. Các variant đổi reply chạy toàn bộ agent; chỉ hàm viết reply được thay trong bộ nhớ trong lúc chạy.
 
 ### Chống gian lận eval (M7)
 
@@ -94,5 +94,5 @@ Spec v2 so với spec starter trên `main` không bị coi là nới lỏng (rat
 ### Giới hạn cỡ mẫu (v2)
 
 - 28 item × 5 seed. Slice nhỏ (escalation chỉ có 4 item) cho CI rất rộng, nên slice gate dựa vào **sàn**, không dựa vào CI.
-- **Bug xuất hiện ở 1/3 số lần chạy không phát hiện ổn định với 5 seed.** Với bug ngẫu nhiên tỉ lệ p = 1/3, xác suất một item pass cả 5 lần là (2/3)^5 ≈ 0.13. Khi chỉ 3 item bị ảnh hưởng, xác suất cả 3 đều không lộ lỗi là ≈ 0.002, nhưng xác suất CI của trung bình chạm 0 thì cao. Ngoài ra, công tắc `rare` của bộ seed này chỉ bật ở seed 33 (1/5 seed), nên nếu đổi seed thì tỉ lệ lộ lỗi cũng đổi. Gate ở đây bắt được các variant `rare` vì MockLLM tất định (`max_new_failures`, `pass_hat_5`, sàn slice), **không phải** vì 5 seed đủ về mặt thống kê. Với model thật cần nhiều seed hơn trước khi tin `pass_hat_5`. Số seed cụ thể chưa được kiểm chứng ở đây, phải chọn bằng A/A lặp lại và power analysis cho tỉ lệ bug nhỏ nhất muốn bắt. Các xác suất trên giả định các lần chạy độc lập. Mình không hạ ngưỡng để "bắt" lỗi này.
+- **Bug xuất hiện ở 1/3 số lần chạy không phát hiện ổn định với 5 seed.** Với bug ngẫu nhiên tỉ lệ p = 1/3, xác suất một item pass cả 5 lần là (2/3)^5 ≈ 0.13. Khi chỉ 3 item bị ảnh hưởng, xác suất cả 3 đều không lộ lỗi là ≈ 0.002, nhưng xác suất CI của trung bình chạm 0 thì cao. Ngoài ra, công tắc `rare` của bộ seed này chỉ bật ở seed 33 (1/5 seed), nên nếu đổi seed thì tỉ lệ lộ lỗi cũng đổi. Gate ở đây bắt được các variant `rare` vì MockLLM tất định (`max_new_failures`, `pass_hat_5`, sàn slice), **không phải** vì 5 seed đủ về mặt thống kê. Với model thật cần nhiều seed hơn trước khi tin `pass_hat_5`. Số seed cụ thể chưa được kiểm chứng ở đây, phải chọn bằng A/A lặp lại và power analysis cho tỉ lệ bug nhỏ nhất muốn bắt. Các xác suất trên giả định các lần chạy độc lập. Ngưỡng không được hạ để "bắt" lỗi này.
 - `quiet_override` chỉ ở 1/5 seed, nếu trùng đúng các item mà baseline đã fail ở một seed khác, sẽ có cùng số pass theo item với baseline. Chỉ phép so theo dòng (`max_new_failures`) phân biệt được.

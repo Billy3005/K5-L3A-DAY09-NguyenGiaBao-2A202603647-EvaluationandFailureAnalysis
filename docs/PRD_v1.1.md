@@ -57,7 +57,7 @@ Quy tắc: tiền và phê duyệt luôn chấm bằng code. Judge chỉ dùng c
 ## 5. Cổng release
 - Lệnh: `python -m lab9.gate --pr reports/eval_<shape>.json --baseline reports/baseline_v1.json --spec config/metric_spec.yaml`. Từ v2 (Advanced): `--spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json --base-spec <spec trên main>`.
 - Baseline chạy shape `swarm`, phủ đủ `item × seed`. `eval_set_sha` của PR phải trùng baseline. **Hiện trạng (bootstrap):** `main` của fork chưa có baseline, nên `baseline_v1.json` / `baseline_v2.json` được commit trên nhánh PR, đúng như README hướng dẫn. CI đọc baseline từ checkout của PR. Sau khi merge, baseline nằm trên `main`. Để baseline thật sự do nhánh được bảo vệ sở hữu cần thêm branch protection và CODEOWNERS cho `src/reports/baseline_*.json` (chưa làm).
-- Kiểm tra hiện có: `lab9.ci_check` so metric **và từng verdict theo (item, seed)** của baseline với lần chạy `swarm` của chính CI. `integrity_check` của gate kiểm baseline giống như PR (dòng trùng, grader crash, metric không khớp rows). Hai kiểm tra này phát hiện baseline bị sửa tay hoặc chạy từ shape khác, nhưng không chống được người sửa cả code harness lẫn baseline trong cùng một PR.
+- Kiểm tra hiện có: `lab9.ci_check` (công cụ của giảng viên, giữ nguyên) so metric tổng của baseline với lần chạy `swarm` của chính CI. `python -m scripts.check_baseline_rows` (của nhóm) so **từng verdict theo (item, seed)**. `integrity_check` của gate kiểm baseline giống như PR (dòng trùng, grader crash, metric không khớp rows). Hai kiểm tra này phát hiện baseline bị sửa tay hoặc chạy từ shape khác, nhưng không chống được người sửa cả code harness lẫn baseline trong cùng một PR.
 - Gate từ chối report không đáng tin (`INTEGRITY`): NaN, thiếu/trùng dòng, chọn seed, grader crash, metric không khớp rows, slice bị gắn lại, spec bị nới (ratchet).
 - Gate exit 1 → **không merge**. Người xử lý: **Eval owner** (Nguyễn Gia Bảo) đọc dòng `BLOCK`, mở trace case (`python -m lab9.trace_case`) cho dòng fail đầu tiên, rồi gán FM. Ngoại lệ (waiver) chỉ được duyệt bởi Product owner **và** Eval owner, ghi lý do và run ID vào mô tả PR. Không có waiver cho metric an toàn (`approval_bypass`, `secret_leak`) và metric tiền.
 
@@ -75,5 +75,5 @@ Quy tắc: tiền và phê duyệt luôn chấm bằng code. Judge chỉ dùng c
 ## Phê duyệt
 | Vai trò | Tên | Ngày |
 |---|---|---|
-| Product | (giảng viên/PO lớp K5) | |
+| Product | *chờ duyệt* (PO lớp K5 chưa ký) | — |
 | Eval owner (giữ gate) | Nguyễn Gia Bảo (2A202603647) | 2026-11-17 |
