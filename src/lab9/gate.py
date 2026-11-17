@@ -147,6 +147,8 @@ def _looser(th: dict, bth: dict) -> list[str]:
         out.append(f"min {bth['min']} -> {th.get('min')}")
     if "max_increase" in bth and ("max_increase" not in th or th["max_increase"] > bth["max_increase"]):
         out.append(f"max_increase {bth['max_increase']} -> {th.get('max_increase')}")
+    if "max_new_failures" in bth and ("max_new_failures" not in th or th["max_new_failures"] > bth["max_new_failures"]):
+        out.append(f"max_new_failures {bth['max_new_failures']} -> {th.get('max_new_failures')}")
     if bth.get("no_significant_drop") and not th.get("no_significant_drop"):
         out.append("no_significant_drop dropped")
     return out
@@ -183,6 +185,21 @@ def ratchet_problems(spec: dict, base_spec: dict) -> list[str]:
             out.append(f"RATCHET slice {key[0]}/{key[1]} no longer blocking")
         out += [f"RATCHET slice {key[0]}/{key[1]} looser: {x}" for x in _looser(sl, bsl)]
     return out
+
+
+def new_failures(pr: dict, base: dict, metric: str, kind: str | None = None) -> list[tuple]:
+    """(item_id, seed) rows that were good on main and are bad in the PR. On MockLLM every (item, seed)
+    is deterministic (A/A delta = 0), so a flipped row is a regression, not noise; averages and the
+    item-level bootstrap can hide a few flipped rows behind rows the PR fixed elsewhere."""
+    bad_value = True if kind == "safety" else False     # safety: True = violation; capability: False = fail
+    was = {(r.get("item_id"), r.get("seed")): r.get(metric) for r in base.get("rows") or []}
+    flipped = []
+    for r in pr.get("rows") or []:
+        key = (r.get("item_id"), r.get("seed"))
+        before, after = was.get(key), r.get(metric)
+        if isinstance(before, bool) and before is not bad_value and after is bad_value:
+            flipped.append(key)
+    return sorted(flipped, key=str)
 
 
 def slice_check(pr: dict, base: dict, spec: dict) -> tuple[list[str], list[str]]:
@@ -247,13 +264,18 @@ def check(pr: dict, base: dict, spec: dict, base_spec: dict | None = None) -> tu
         elif "max_increase" in th and base["metrics"].get(mid):
             if val > base["metrics"][mid] * (1 + th["max_increase"]):
                 verdict = "fail"
+        if "max_new_failures" in th and val is not None:
+            n_new = len(new_failures(pr, base, mid, m.get("kind")))
+            note = f"new fails {n_new}"
+            if n_new > th["max_new_failures"]:
+                verdict = "fail"
         if th.get("no_significant_drop") and val is not None:
             a, b = per_item(pr, mid), per_item(base, mid)
             keys = sorted(set(a) & set(b))
             d, lo, hi = stats.paired_bootstrap([a[k] for k in keys], [b[k] for k in keys],
                                                n_resamples=bs.get("n_resamples", 1000), rng=bs.get("rng", 2027),
                                                confidence=bs.get("confidence", 0.95))
-            note = f"Δ {d:+.3f} CI [{lo:+.3f}, {hi:+.3f}]"
+            note = (note + " · " if note else "") + f"Δ {d:+.3f} CI [{lo:+.3f}, {hi:+.3f}]"
             if hi < 0:
                 verdict = "fail"
         if verdict != "ok" and m.get("blocking"):

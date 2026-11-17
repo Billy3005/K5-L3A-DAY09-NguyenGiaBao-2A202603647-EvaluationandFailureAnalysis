@@ -8,6 +8,18 @@ import pytest
 pytestmark = pytest.mark.student
 
 
+@pytest.fixture(autouse=True, scope="module")
+def _restore_shape_registry():
+    """investigate() registers the lab9 variants (and these tests a probe shape) into Lab 8's global
+    SHAPES; put the registry back so Lab 8 contract tests in the same process see only their shapes."""
+    from lab8.shapes import SHAPES
+
+    saved = dict(SHAPES)
+    yield
+    SHAPES.clear()
+    SHAPES.update(saved)
+
+
 def _graded(shape: str, claim: str, seed: int, bugs: frozenset[str] | None = None):
     from pydantic_evals.evaluators import EvaluatorContext
 
