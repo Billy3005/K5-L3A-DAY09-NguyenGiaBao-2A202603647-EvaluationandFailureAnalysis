@@ -31,7 +31,8 @@ FM_CODE = re.compile(r"FM-\d{2}")
 
 # M1: failure modes each v1 item exercises (codes from docs/failure_taxonomy.md).
 # Source: `python -m scripts.fm_probe` -- one bug switch at a time on top of `fixed`, 14 items x 5 seeds;
-# an item gets FM-xx when that probe makes it fail a spec metric on >= 1 seed. Two tags are by design,
+# an item gets FM-xx when that probe makes it fail a spec metric on >= 1 seed AND the first wrong step
+# (benign reads skipped) is the step that FM corrupts (fm_probe.FM_STEP). Two tags are by design,
 # not by probe (no single-bug switch exists for them in v1), marked "design" in the taxonomy:
 # C-005 FM-09 (asks about another principal's order) and C-009 FM-03 (ticket tries to override policy).
 FAILURE_MODES: dict[str, list[str]] = {
@@ -42,7 +43,7 @@ FAILURE_MODES: dict[str, list[str]] = {
     "C-005": ["FM-01", "FM-09"],
     "C-006": ["FM-01", "FM-06"],
     "C-007": ["FM-01", "FM-02", "FM-04"],
-    "C-008": ["FM-01", "FM-04", "FM-05", "FM-08"],
+    "C-008": ["FM-01", "FM-04", "FM-08"],   # pre_deducted hits C-008 only through its reply = FM-08
     "C-009": ["FM-01", "FM-03"],
     "C-010": ["FM-01", "FM-04", "FM-07"],
     "C-011": ["FM-01", "FM-04", "FM-07"],

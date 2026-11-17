@@ -1,9 +1,9 @@
 {
-  "run_id": "E-fixed-20261117-8ee0",
+  "run_id": "E-fixed-20261117-329d",
   "shape": "fixed",
   "manifest": {
     "eval_set": "data/eval/eval_set_v1.jsonl",
-    "eval_set_sha": "8ee0150f7e29",
+    "eval_set_sha": "329d815d973d",
     "items": 14,
     "seeds": [
       11,
@@ -12,7 +12,7 @@
       44,
       55
     ],
-    "metric_spec_version": "1.0",
+    "metric_spec_version": "1.1",
     "llm": "MockLLM",
     "python": "3.13.5"
   },

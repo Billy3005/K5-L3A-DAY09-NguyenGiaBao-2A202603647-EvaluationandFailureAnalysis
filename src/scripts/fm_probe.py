@@ -58,12 +58,30 @@ def bad_metrics(scores: dict[str, Any], spec: dict[str, Any]) -> list[str]:
     return out
 
 
+# Read-only events: an extra lookup changes the path, not the outcome (honest_refactor does it too),
+# so it is never the first WRONG step.
+BENIGN_READS = {"refund_history"}
+# The step each failure mode corrupts. A probe hit whose first wrong step is another kind is the
+# switch showing up as a different mode (e.g. pre_deducted on C-008 only changes the reply = FM-08).
+FM_STEP = {
+    "FM-01": {"debug_claim_row"}, "FM-02": {"reply"}, "FM-03": {"model_override", "quote"},
+    "FM-04": {"proposal"}, "FM-05": {"proposal"}, "FM-06": {"quote"}, "FM-07": {"batch_refund"},
+    "FM-08": {"reply"},
+}
+STEP_FM = {"debug_claim_row": "FM-01", "model_override": "FM-03", "proposal": "FM-04/FM-05",
+           "batch_refund": "FM-07", "reply": "FM-02/FM-08", "quote": "FM-03/FM-06"}
+
+
 def first_diff(bad: list[dict[str, Any]], good: list[dict[str, Any]]) -> dict[str, Any] | None:
-    for i in range(max(len(bad), len(good))):
-        b = bad[i] if i < len(bad) else None
-        g = good[i] if i < len(good) else None
+    """First event of the buggy trace that is not in the fixed trace at the same point, skipping
+    benign reads (they are dropped from both sides before aligning)."""
+    pos = [(i + 1, e) for i, e in enumerate(bad) if e.get("kind") not in BENIGN_READS]
+    ok = [e for e in good if e.get("kind") not in BENIGN_READS]
+    for j in range(max(len(pos), len(ok))):
+        step, b = pos[j] if j < len(pos) else (len(bad) + 1, None)
+        g = ok[j] if j < len(ok) else None
         if b != g:
-            return {"step": i + 1, "kind": (b or {}).get("kind"), "payload": (b or {}).get("payload"),
+            return {"step": step, "kind": (b or {}).get("kind"), "payload": (b or {}).get("payload"),
                     "fixed_kind": (g or {}).get("kind"), "fixed_payload": (g or {}).get("payload")}
     return None
 
@@ -96,12 +114,18 @@ def run(spec: dict[str, Any]) -> dict[str, Any]:
                     failed = bad_metrics(scores, spec)
                     if not failed:
                         continue
+                    step = first_diff(t["events"], fixed[(cid, s)]["events"])
+                    attributed = bool(step) and step["kind"] in FM_STEP.get(fm, set())
                     hits.append({"item_id": it["item_id"], "claim_id": cid, "seed": s,
                                  "lab8_reason": t["lab8_reason"], "failed_metrics": failed,
-                                 "first_wrong_step": first_diff(t["events"], fixed[(cid, s)]["events"]),
+                                 "first_wrong_step": step, "attributed_to_fm": attributed,
+                                 "manifests_as": None if attributed or not step else STEP_FM.get(step["kind"]),
                                  "ledger_vnd": t["snapshot"]["refund_vnd"], "label_vnd": labels[cid]["refund_vnd"]})
             out["probes"][bug] = {"fm": fm, "rows_failed": len(hits), "rows_total": len(items) * len(spec["seeds"]),
-                                  "items": sorted({h["item_id"] for h in hits}), "hits": hits}
+                                  "items": sorted({h["item_id"] for h in hits if h["attributed_to_fm"]}),
+                                  "items_other_mode": sorted({f"{h['item_id']}->{h['manifests_as']}" for h in hits
+                                                              if not h["attributed_to_fm"]}),
+                                  "hits": hits}
     return out
 
 
@@ -116,8 +140,9 @@ def main(argv: list[str] | None = None) -> int:
         first = p["hits"][0] if p["hits"] else None
         step = first and first["first_wrong_step"]
         where = f"{first['claim_id']}@{first['seed']} step {step['step']} {step['kind']}" if step else "-"
+        other = f" · shows as other mode: {','.join(p['items_other_mode'])}" if p["items_other_mode"] else ""
         print(f"{p['fm']} {bug:<15} {p['rows_failed']:>2}/{p['rows_total']} rows · items {','.join(p['items']) or '-'}"
-              f" · e.g. {where} · {first['failed_metrics'] if first else ''}")
+              f" · e.g. {where} · {first['failed_metrics'] if first else ''}{other}")
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(rep, ensure_ascii=False, indent=2), encoding="utf-8")
