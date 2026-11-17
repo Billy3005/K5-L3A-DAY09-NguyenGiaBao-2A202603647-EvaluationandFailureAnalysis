@@ -5,7 +5,7 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
 ## v1 (Core)
 
 - **Run ID / eval set SHA:** baseline `E-swarm-20261117-c38f` · eval set v1 `c38fe0e1e779`
-- **Phiên bản:** nhánh `starter/d09` · eval set v1 (sha `c38fe0e1e779`) · `metric_spec` 1.1 · code + grader commit `65880c8` (grader FM-08 cập nhật lần cuối ở commit của vòng chấm thứ hai, report không đổi) (`src/lab9/graders.py`, `gate.py`, `stats.py`). Các report được sinh lại và đối chiếu ở mỗi vòng review: grader chỉ đổi cách đọc reply, còn metric và rows của mọi report giữ nguyên. Run ID / sha đổi một lần do sửa lỗi xuống dòng: trên Windows file eval set được checkout với CRLF nên sha khác với runner Linux. `sha12` giờ chuẩn hóa CRLF thành LF, và `.gitattributes` giữ dữ liệu ở LF · seeds 11/22/33/44/55 · MockLLM · Python 3.13.5
+- **Phiên bản:** nhánh `starter/d09` · eval set v1 (sha `c38fe0e1e779`) · `metric_spec` 1.1 · code + grader commit `56fe8ea` (`src/lab9/graders.py`, `gate.py`, `stats.py`). Các report được sinh lại và đối chiếu ở mỗi vòng review: grader chỉ đổi cách đọc reply, còn metric và rows của mọi report giữ nguyên. Run ID / sha đổi một lần do sửa lỗi xuống dòng: trên Windows file eval set được checkout với CRLF nên sha khác với runner Linux. `sha12` giờ chuẩn hóa CRLF thành LF, và `.gitattributes` giữ dữ liệu ở LF · seeds 11/22/33/44/55 · MockLLM · Python 3.13.5
 - **Eval set:** v1, 14 item × 5 seed = 70 trial, nguồn `lab8_public` (ma trận T01–T14). Nhãn tách riêng ở `labels_v1.json`. `failure_modes` gắn theo probe (`python -m scripts.fm_probe`). `python -m lab9.evalset --check` → 0 problem
 - **Metric & ngưỡng** (`config/metric_spec.yaml`):
 
