@@ -5,7 +5,7 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
 ## v1 (Core)
 
 - **Run ID / eval set SHA:** baseline `E-swarm-20261117-c38f` · eval set v1 `c38fe0e1e779`
-- **Phiên bản:** nhánh `starter/d09` · eval set v1 (sha `c38fe0e1e779`) · `metric_spec` 1.1 · code + grader commit `65880c8` (`src/lab9/graders.py`, `gate.py`, `stats.py`). Các report được sinh lại và đối chiếu ở mỗi vòng review: grader chỉ đổi cách đọc reply, còn metric và rows của mọi report giữ nguyên. Run ID / sha đổi một lần do sửa lỗi xuống dòng: trên Windows file eval set được checkout với CRLF nên sha khác với runner Linux. `sha12` giờ chuẩn hóa CRLF thành LF, và `.gitattributes` giữ dữ liệu ở LF · seeds 11/22/33/44/55 · MockLLM · Python 3.13.5
+- **Phiên bản:** nhánh `starter/d09` · eval set v1 (sha `c38fe0e1e779`) · `metric_spec` 1.1 · code + grader commit `65880c8` (grader FM-08 cập nhật lần cuối ở commit của vòng chấm thứ hai, report không đổi) (`src/lab9/graders.py`, `gate.py`, `stats.py`). Các report được sinh lại và đối chiếu ở mỗi vòng review: grader chỉ đổi cách đọc reply, còn metric và rows của mọi report giữ nguyên. Run ID / sha đổi một lần do sửa lỗi xuống dòng: trên Windows file eval set được checkout với CRLF nên sha khác với runner Linux. `sha12` giờ chuẩn hóa CRLF thành LF, và `.gitattributes` giữ dữ liệu ở LF · seeds 11/22/33/44/55 · MockLLM · Python 3.13.5
 - **Eval set:** v1, 14 item × 5 seed = 70 trial, nguồn `lab8_public` (ma trận T01–T14). Nhãn tách riêng ở `labels_v1.json`. `failure_modes` gắn theo probe (`python -m scripts.fm_probe`). `python -m lab9.evalset --check` → 0 problem
 - **Metric & ngưỡng** (`config/metric_spec.yaml`):
 
@@ -36,7 +36,7 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
   - **14 item**: CI rộng (Δ +0.014 có CI [0, +0.043]), chỉ bắt được hồi quy lớn khi chỉ dựa vào trung bình.
   - **Judge replay**: chấm trên CSV đã công khai, chưa có held-out. Có 1 nhãn người sai (H-081).
   - Chưa đo trên người dùng thật.
-  - Grader FM-08 đọc reply bằng quy tắc ngôn ngữ (vi có/không dấu, en; 53 ca test hai chiều: 32 reply trung thực, 21 reply sai, gồm cả số tiền không có đơn vị như "35.000" hay "35000"). Câu diễn đạt quá lạ có thể lọt.
+  - Grader FM-08 đọc reply bằng quy tắc ngôn ngữ (vi có/không dấu, en; 59 ca test hai chiều: 36 reply trung thực, 23 reply sai, gồm cả số tiền không có đơn vị như "35.000" hay "35000"). Câu diễn đạt quá lạ có thể lọt: đây là giới hạn của grader dựa trên quy tắc. Các variant của lab dùng mẫu reply trong `variant_agent`, và grader đúng với mọi mẫu đó.
 - **Khi nào tăng eval-set version:** khi thêm item (ví dụ biến trace case thành item với `provenance.from_trace`), đổi nhãn, hoặc thêm pack đối kháng. Sau đó chạy lại baseline trên `main` và ghi lại ngưỡng. Trong cùng một version, ngưỡng chỉ được chặt hơn (ratchet).
 
 ## v2 (Advanced / Expert)
@@ -70,7 +70,7 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi s�
 
 Scorecard công khai `python -m lab9.mutation --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json`: **3/3 regression bị chặn, 0 báo nhầm**. Với `slice_regression`, gate chỉ dựa trên trung bình (sàn + CI) sẽ merge. Slice `money_movement` chặn được nó. Với `flaky_regression`, CI của trung bình lần này nằm dưới 0 nhưng sát (−0.014), nên không ổn định khi đổi seed. `pass_hat_5` mới là cách chặn có chủ đích.
 
-**Kiểm thêm với variant giống ẩn** (`python -m scripts.gate_stress --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json --base-spec config/metric_spec_v2.yaml`): 20 regression ghép từ các công tắc của `variant_agent` (FM-03 không để lại event `model_override`, FM-08 reply sai tiền kể cả khi chỉ ở 1/5 seed hoặc có paraphrase, stale_clause / ignore_denied / pre_deducted / sum_parts / sibling_refund / leaky_trace ở seed lẻ hoặc 1/5 seed) cùng 2 regression chỉ khác cách viết reply (số tiền dạng số nguyên trơn "35000", reply tiếng Anh) đều bị chặn: **22/22**. 9 PR trung thực (`fixed`, `honest_refactor`, paraphrase, extra_lookup, swarm + refactor, swarm so với chính nó, reply ghi số trơn, reply thêm câu "sẽ nhận được phản hồi trong 3-5 ngày", reply tiếng Anh) đều merge: **0/9 báo nhầm**. Các variant đổi reply chạy toàn bộ agent; chỉ hàm viết reply được thay trong bộ nhớ trong lúc chạy.
+**Kiểm thêm với variant giống ẩn** (`python -m scripts.gate_stress --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json --base-spec config/metric_spec_v2.yaml`): 20 regression ghép từ các công tắc của `variant_agent` (FM-03 không để lại event `model_override`, FM-08 reply sai tiền kể cả khi chỉ ở 1/5 seed hoặc có paraphrase, stale_clause / ignore_denied / pre_deducted / sum_parts / sibling_refund / leaky_trace ở seed lẻ hoặc 1/5 seed) cùng 3 regression chỉ khác cách viết reply (số tiền dạng số nguyên trơn "35000", reply tiếng Anh, và "Khoản hoàn từ LogiX: 35,000 VND") đều bị chặn: **23/23**. 11 PR trung thực (`fixed`, `honest_refactor`, paraphrase, extra_lookup, swarm + refactor, swarm so với chính nó, reply ghi số trơn, reply thêm câu "sẽ nhận được phản hồi trong 3-5 ngày", reply tiếng Anh, "có thể nhận được 1 phản hồi", "Khoản hoàn từ LogiX: …") đều merge: **0/11 báo nhầm**. Các variant đổi reply chạy toàn bộ agent; chỉ hàm viết reply được thay trong bộ nhớ trong lúc chạy.
 
 ### Chống gian lận eval (M7)
 

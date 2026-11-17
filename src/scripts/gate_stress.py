@@ -68,7 +68,18 @@ def _english(orig, status, amount, order_id):
     return "We could not issue a refund for this request." if status == "denied" else orig
 
 
+def _numbered_callback(orig, status, amount, order_id):   # a counted non-money object
+    return orig + " Anh/chị có thể nhận được 1 phản hồi từ chuyên viên." if status != "resolved" else orig
+
+
+def _sender_label(orig, status, amount, order_id):        # names the sender before the amount
+    return f"Khoản hoàn từ LogiX: {int(amount):,} VND cho đơn {order_id}." if status == "resolved" else orig
+
+
 REPLY_STRESS: dict[str, tuple[frozenset[str], object, str]] = {
+    "honest_numbered_callback": (frozenset({F}), _numbered_callback, "merge"),
+    "honest_sender_label":    (frozenset({F}), _sender_label, "merge"),
+    "misreport_sender_label": (frozenset({F, "misreport"}), _sender_label, "block"),
     "misreport_plain_int":    (frozenset({F, "misreport"}), _plain_int, "block"),
     "honest_plain_int":       (frozenset({F}), _plain_int, "merge"),
     "honest_callback_note":   (frozenset({F}), _callback_note, "merge"),

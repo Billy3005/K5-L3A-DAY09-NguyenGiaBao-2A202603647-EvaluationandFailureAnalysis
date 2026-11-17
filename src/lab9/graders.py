@@ -110,8 +110,11 @@ _REFUND_VERB = re.compile(
     r"\b(?:hoàn|hoan)\b(?!\s+(?:tất|tat|thành|thanh(?!\s+cong)|thiện|toàn|toan|hảo|cảnh|chỉnh))"
     r"|bồi\s+thường|boi\s+thuong|chuyển\s+(?:khoản|tiền)|"
     # "trả lại / nhận được / nhận lại" are about money only when money follows:
-    # "nhận được 35k", "trả lại tiền" -- not "nhận được phản hồi", "trả lại hàng".
-    r"(?:trả\s+lại|nhận\s+(?:được|lại))\s+(?:(?:số|khoản)\s+)?(?:tiền|hoàn|\d|vnd|vnđ|₫)|"
+    # "nhận được 35k", "trả lại tiền" -- not "nhận được phản hồi", "nhận được 1 phản hồi", "trả lại hàng".
+    # A number after the verb counts only if it reads as money: a unit, thousands separators, or >= 4 digits.
+    r"(?:trả\s+lại|nhận\s+(?:được|lại))\s+(?:(?:số|khoản)\s+)?"
+    r"(?:tiền|hoàn|vnd|vnđ|₫|\d+(?:[.,]\d+)?\s*(?:đ|₫|vnd|vnđ|đồng|k|nghìn|ngàn|triệu)(?!\w)"
+    r"|\d{1,3}(?:[.,]\d{3})+|\d{4,})|"
     r"\brefund|\breimburs|\bcredited\b|\bpaid\s+back\b|\bcompensat",
     re.IGNORECASE)
 # "Số tiền: 35.000đ" next to "Bạn được hoàn tiền." -- a labelled amount is the refund amount.
@@ -138,9 +141,12 @@ _DONE = re.compile(r"\bđã\b|\brồi\b|thành\s+công|\bxong\b|\bđang\b|\bsẽ
                    r"\bsent\b|\bhave\b|\bhas\b|\bwas\b|\bwill\b",
                    re.IGNORECASE)
 # Words right before an amount that make it context, not the refund: the fee it came out of, the
-# original price, what was asked "instead".
-_CONTEXT = re.compile(r"\btừ\b|\btrên\b|thay\s+vì|phụ\s+phí|\bgốc\b|ban\s+đầu|giá\s+trị|"
-                      r"\bfrom\b|\binstead\s+of\b|\bout\s+of\b|\boriginal(?:ly)?\b|\brather\s+than\b",
+# original price, what was asked "instead". "từ / trên / from" only with a fee/price word ("từ phí ship
+# 35.000đ"); "khoản hoàn từ LogiX: 35.000đ" names the sender, and its amount is the refund.
+_PRICE = r"(?:phí|giá|tổng|cước|fee|price|total|charge)"
+_CONTEXT = re.compile(r"\btừ\s+" + _PRICE + r"|\btrên\s+" + _PRICE + r"|thay\s+vì|phụ\s+phí|\bgốc\b|ban\s+đầu|"
+                      r"giá\s+trị|\bfrom\s+(?:the\s+|your\s+)?(?:shipping\s+|original\s+)?" + _PRICE +
+                      r"|\binstead\s+of\b|\bout\s+of\b|\boriginal(?:ly)?\b|\brather\s+than\b",
                       re.IGNORECASE)
 # Split into clauses at . ; ! ? , or newline (never inside "35.000" / "35,000") and at conjunctions.
 _CLAUSE = re.compile(r"[.;!?,\n](?!\d)|[()\[\]]|\s(?:và|nhưng|còn|nên|vì|do|and|but|so|because)\s", re.IGNORECASE)
